@@ -63,3 +63,11 @@ def test_profile_extended_fields(tmp_path):
     assert p["role_context"] == "CTO of a 10-person startup"
     assert p["goals"] == "ship ML API cheaply"
     assert p["expertise_notes"] == "knows Docker, new to k8s"
+
+
+def test_negative_feedback_texts_retrievable(tmp_path):
+    m = Memory(str(tmp_path / "t.db"))
+    m.save_run("brief", "engineer", "k", REPORT, run_uuid="r1")
+    m.add_feedback("r1", "c1", False, claim_text="K8s is always cheaper")
+    m.add_feedback("r1", "c2", True, claim_text="serverless is best")
+    assert m.negative_claim_texts() == ["K8s is always cheaper"]

@@ -40,6 +40,7 @@ class FeedbackIn(BaseModel):
     run_id: str
     claim_id: str
     helpful: bool = True
+    claim_text: str = ""
 
 
 def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
@@ -93,7 +94,7 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
 
     @app.post("/api/feedback")
     async def feedback(f: FeedbackIn):
-        memory.add_feedback(f.run_id, f.claim_id, f.helpful)
+        memory.add_feedback(f.run_id, f.claim_id, f.helpful, claim_text=f.claim_text)
         return {"ok": True}
 
     @app.get("/api/telemetry")

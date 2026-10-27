@@ -100,3 +100,10 @@ async def test_concurrency_bounded():
     llm = InflightLLM(model_responses={m: [SUP] for m in ("mA", "mB")})
     await verify_claims(claims, SOURCES, ["mA", "mB"], llm, FakeTavily(), max_concurrency=6)
     assert llm.max_inflight <= 6
+
+
+async def test_flagged_claims_raise_strictness():
+    llm = FakeLLM(model_responses={"mA": [SUP], "mB": [SUP]})
+    await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, FakeTavily(),
+                        flagged_claims=["K8s is always cheaper"])
+    assert "K8s is always cheaper" in str(llm.prompts[0])

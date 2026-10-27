@@ -32,8 +32,15 @@ def _resolve(round_verdicts: list[dict]) -> str:
 async def verify_claims(claims: list[Claim], sources: list[Source],
                         models: list[str], llm: TokenFactoryClient,
                         tavily: TavilyClient, trust_fn=None,
-                        max_concurrency: int = 6) -> list[Verdict]:
+                        max_concurrency: int = 6, flagged_claims: list[str] | None = None) -> list[Verdict]:
     sem = asyncio.Semaphore(max_concurrency)
+    strictness = ""
+    if flagged_claims:
+        flagged = "\n".join(f"- {t}" for t in flagged_claims)
+        strictness = (
+            "\nThe user previously flagged similar claims as unhelpful or wrong — be extra strict "
+            f"about claims of this kind:\n{flagged}"
+        )
     by_q: dict[str, list[Source]] = {}
     for s in sources:
         by_q.setdefault(s.sub_question_id, []).append(s)
@@ -44,7 +51,7 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
                 return await llm.chat_json(model, [
                     {"role": "system", "content": (
                         "You are an adversarial fact verifier. Decide whether the claim is supported, "
-                        "contradicted, or uncertain given ONLY the evidence. Be strict."
+                        "contradicted, or uncertain given ONLY the evidence. Be strict." + strictness
                     )},
                     {"role": "user", "content": f"Claim: {claim.text}\n\nEvidence:\n{evidence}"},
                 ], VERDICT_SCHEMA)

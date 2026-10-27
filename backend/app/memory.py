@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS verdicts (
 CREATE TABLE IF NOT EXISTS feedback (
     run_uuid TEXT NOT NULL,
     claim_id TEXT NOT NULL,
-    helpful INTEGER NOT NULL
+    helpful INTEGER NOT NULL,
+    claim_text TEXT NOT NULL DEFAULT ''
 );
 """
 
@@ -92,12 +93,20 @@ class Memory:
         ).fetchone()
         return self._report_row(row)
 
-    def add_feedback(self, run_uuid: str, claim_id: str, helpful: bool) -> None:
+    def add_feedback(self, run_uuid: str, claim_id: str, helpful: bool,
+                     claim_text: str = "") -> None:
         self._conn.execute(
-            "INSERT INTO feedback (run_uuid, claim_id, helpful) VALUES (?, ?, ?)",
-            (str(run_uuid), claim_id, int(helpful)),
+            "INSERT INTO feedback (run_uuid, claim_id, helpful, claim_text) VALUES (?, ?, ?, ?)",
+            (str(run_uuid), claim_id, int(helpful), claim_text),
         )
         self._conn.commit()
+
+    def negative_claim_texts(self, limit: int = 10) -> list[str]:
+        rows = self._conn.execute(
+            "SELECT DISTINCT claim_text FROM feedback WHERE helpful = 0 AND claim_text != '' "
+            "ORDER BY rowid DESC LIMIT ?", (limit,),
+        ).fetchall()
+        return [r[0] for r in rows]
 
     def feedback_count(self) -> int:
         return self._conn.execute("SELECT COUNT(*) FROM feedback").fetchone()[0]
