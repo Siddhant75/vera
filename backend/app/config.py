@@ -20,3 +20,15 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [item.strip() for item in v.split(",") if item.strip()]
         return v
+
+    @field_validator("verifier_models")
+    @classmethod
+    def _validate_verifier_models(cls, v, info):
+        if not v:
+            return v  # unconfigured; build_app refuses to start without models
+        if len(v) < 2:
+            raise ValueError("verifier models need at least 2 distinct models")
+        planner = info.data.get("planner_model", "")
+        if planner in v:
+            raise ValueError("verifier models must not include the planner model")
+        return v

@@ -48,6 +48,8 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory) ->
         memory.set_profile(p.persona, p.trusted_sources, p.excluded_sources)
         return memory.get_profile()
 
+    app.state.background_tasks = set()
+
     @app.post("/api/research")
     async def post_research(r: ResearchIn):
         run_id = uuid.uuid4().hex[:12]
@@ -55,8 +57,10 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory) ->
         async def emit(event: dict):
             await bus.emit(run_id, event)
 
-        asyncio.create_task(run_research(run_id, r.brief, r.persona, r.topic, r.delta,
-                                         llm, tavily, memory, emit))
+        task = asyncio.create_task(run_research(run_id, r.brief, r.persona, r.topic, r.delta,
+                                                llm, tavily, memory, emit))
+        app.state.background_tasks.add(task)
+        task.add_done_callback(app.state.background_tasks.discard)
         return {"run_id": run_id}
 
     @app.get("/api/runs/{run_id}/events")
@@ -86,6 +90,10 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory) ->
 
 def build_app() -> FastAPI:
     settings = Settings()
+    if not settings.planner_model or len(settings.verifier_models) < 2:
+        raise ValueError(
+            "PLANNER_MODEL and VERIFIER_MODELS (>=2, excluding planner) must be configured in .env"
+        )
     llm = TokenFactoryClient(
         settings.token_factory_base_url,
         settings.token_factory_api_key,
@@ -97,4 +105,7 @@ def build_app() -> FastAPI:
     return create_app(llm, tavily, memory)
 
 
-app = build_app()
+try:
+    app = build_app()
+except ValueError:
+    app = None  # models unconfigured: tests import fine; `uvicorn app.main:app` fails clearly at start

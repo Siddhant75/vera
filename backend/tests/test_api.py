@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import httpx
@@ -70,9 +71,20 @@ async def test_sse_late_subscriber_gets_replay(tmp_path):
     app, _ = make_app(tmp_path, llm, FakeTavily(SOURCES))
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
         run_id = (await c.post("/api/research", json={"brief": "Explain X"})).json()["run_id"]
-        # run already complete: late subscriber still sees everything
-        events = parse_sse((await c.get(f"/api/runs/{run_id}/events")).text)
+        # force run completion BEFORE subscribing: late subscriber is the normal fast-fail path
+        for task in list(app.state.background_tasks):
+            await task
+        raw = await asyncio.wait_for(c.get(f"/api/runs/{run_id}/events"), timeout=5)  # must terminate
+        events = parse_sse(raw.text)
         assert events[-1]["stage"] == "done"
+
+
+async def test_background_task_registered(tmp_path):
+    llm = FakeLLM([PLAN, DRAFT, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    app, _ = make_app(tmp_path, llm, FakeTavily(SOURCES))
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        await c.post("/api/research", json={"brief": "Explain X"})
+        assert len(app.state.background_tasks) >= 1
 
 
 async def test_error_run_reports_failed_stage(tmp_path):

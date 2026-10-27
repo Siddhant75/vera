@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from conftest import FakeLLM, FakeTavily
@@ -62,3 +63,40 @@ async def test_prompt_contains_claim_and_evidence():
     flat = str(llm.prompts[0])
     assert "X is true" in flat
     assert "content of a" in flat
+
+
+async def test_web_recheck_respects_trust_exclusion():
+    llm = FakeLLM(model_responses={"mA": [SUP, SUP], "mB": [CON, CON]})
+    tavily = FakeTavily({"X is true": [
+        {"url": "https://excluded.com/x", "title": "X", "content": "excluded evidence"},
+        {"url": "https://allowed.com/y", "title": "Y", "content": "allowed evidence"},
+    ]})
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily,
+                              trust_fn=lambda d: 0.0 if d == "excluded.com" else 1.0)
+    recheck_prompts = llm.prompts[2:]  # after round-1 (one per model)
+    assert "excluded evidence" not in str(recheck_prompts)
+    assert "allowed evidence" in str(recheck_prompts)
+    assert out[0].web_checked is True
+
+
+async def test_concurrency_bounded():
+    class InflightLLM(FakeLLM):
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            self.inflight = 0
+            self.max_inflight = 0
+
+        async def chat_json(self, model, messages, schema):
+            self.inflight += 1
+            self.max_inflight = max(self.max_inflight, self.inflight)
+            try:
+                await asyncio.sleep(0.01)
+                return await super().chat_json(model, messages, schema)
+            finally:
+                self.inflight -= 1
+
+    claims = [Claim(id=f"c{i}", sub_question_id="q1", text=f"claim {i}", citation_urls=["https://a.com/1"])
+              for i in range(1, 5)]
+    llm = InflightLLM(model_responses={m: [SUP] for m in ("mA", "mB")})
+    await verify_claims(claims, SOURCES, ["mA", "mB"], llm, FakeTavily(), max_concurrency=6)
+    assert llm.max_inflight <= 6

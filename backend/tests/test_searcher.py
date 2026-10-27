@@ -1,3 +1,5 @@
+import pytest
+
 from conftest import FakeTavily
 
 from app.models import ResearchPlan, SubQuestion
@@ -42,4 +44,18 @@ async def test_excluded_domain_dropped():
 async def test_all_excluded_contributes_zero_sources():
     tavily = FakeTavily({"What is X?": [{"url": "https://excluded.com/b", "title": "B", "content": "cb"}]})
     out = await search_sources(PLAN, tavily, trust_fn)
-    assert all(s.sub_question_id != "q1" for s in out)
+    assert [s for s in out if s.sub_question_id == "q1"] == []
+
+
+async def test_search_failure_propagates():
+    from app.search import SearchError
+
+    class SearchErrorTavily(FakeTavily):
+        async def search(self, query, max_results=5):
+            if "Why" in query:
+                raise SearchError("tavily down")
+            return [{"url": "https://a.com/1", "title": "A", "content": "c"}]
+
+    with pytest.raises(ExceptionGroup) as gi:
+        await search_sources(PLAN, SearchErrorTavily(), trust_fn)
+    assert any(isinstance(e, SearchError) for e in gi.value.exceptions)

@@ -31,13 +31,21 @@ class EventBus:
         async with self._lock(run_id):
             stored = list(self._events.get(run_id, []))
             self._queues.setdefault(run_id, []).append(q)
-        for e in stored:
-            yield e
-        while True:
-            event = await q.get()
-            if event.get("stage") == "__end__":
-                break
-            yield event
+        try:
+            for e in stored:
+                if e.get("stage") == "__end__":
+                    return
+                yield e
+            while True:
+                event = await q.get()
+                if event.get("stage") == "__end__":
+                    return
+                yield event
+        finally:
+            try:
+                self._queues.get(run_id, []).remove(q)
+            except (ValueError, KeyError):
+                pass
 
     async def close(self, run_id: str) -> None:
         async with self._lock(run_id):

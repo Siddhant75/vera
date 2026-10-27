@@ -1,6 +1,7 @@
 import asyncio
 
 from app.llm import TokenFactoryClient
+from app.memory import domain_of
 from app.models import Claim, Source, Verdict
 from app.search import TavilyClient
 from app.telemetry import telemetry
@@ -30,20 +31,23 @@ def _resolve(round_verdicts: list[dict]) -> str:
 
 async def verify_claims(claims: list[Claim], sources: list[Source],
                         models: list[str], llm: TokenFactoryClient,
-                        tavily: TavilyClient) -> list[Verdict]:
+                        tavily: TavilyClient, trust_fn=None,
+                        max_concurrency: int = 6) -> list[Verdict]:
+    sem = asyncio.Semaphore(max_concurrency)
     by_q: dict[str, list[Source]] = {}
     for s in sources:
         by_q.setdefault(s.sub_question_id, []).append(s)
 
     async def _ask(model: str, claim: Claim, evidence: str) -> dict:
         try:
-            return await llm.chat_json(model, [
-                {"role": "system", "content": (
-                    "You are an adversarial fact verifier. Decide whether the claim is supported, "
-                    "contradicted, or uncertain given ONLY the evidence. Be strict."
-                )},
-                {"role": "user", "content": f"Claim: {claim.text}\n\nEvidence:\n{evidence}"},
-            ], VERDICT_SCHEMA)
+            async with sem:
+                return await llm.chat_json(model, [
+                    {"role": "system", "content": (
+                        "You are an adversarial fact verifier. Decide whether the claim is supported, "
+                        "contradicted, or uncertain given ONLY the evidence. Be strict."
+                    )},
+                    {"role": "user", "content": f"Claim: {claim.text}\n\nEvidence:\n{evidence}"},
+                ], VERDICT_SCHEMA)
         except Exception:
             return {"verdict": "uncertain", "reason": "model error"}
 
@@ -53,10 +57,14 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
         web_checked = False
         if not all(r.get("verdict") == "supported" for r in round1):
             web = await tavily.search(claim.text)
-            evidence = _evidence([*by_q.get(claim.sub_question_id, []), *[
-                Source(url=w["url"], title=w["title"], content=w["content"], sub_question_id=claim.sub_question_id)
-                for w in web
-            ]])
+            web_sources = []
+            for w in web:
+                domain = domain_of(w["url"])
+                if trust_fn and trust_fn(domain) <= 0.0:
+                    continue  # excluded domains never become verification evidence
+                web_sources.append(Source(url=w["url"], title=w["title"], content=w["content"],
+                                          sub_question_id=claim.sub_question_id))
+            evidence = _evidence([*by_q.get(claim.sub_question_id, []), *web_sources])
             round1 = await asyncio.gather(*(_ask(m, claim, evidence) for m in models))
             web_checked = True
         return Verdict(
@@ -67,6 +75,8 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
             web_checked=web_checked,
         )
 
-    out = list(await asyncio.gather(*(_verify_one(c) for c in claims)))
+    async with asyncio.TaskGroup() as tg:
+        tasks = [tg.create_task(_verify_one(c)) for c in claims]
+    out = [t.result() for t in tasks]
     telemetry.add(claims_verified=len(out))
     return out

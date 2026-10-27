@@ -20,5 +20,6 @@ async def _one(sq, tavily: TavilyClient, trust_fn) -> list[Source]:
 
 async def search_sources(plan: ResearchPlan, tavily: TavilyClient,
                          trust_fn) -> list[Source]:
-    batches = await asyncio.gather(*(_one(sq, tavily, trust_fn) for sq in plan.sub_questions))
-    return [src for batch in batches for src in batch]
+    async with asyncio.TaskGroup() as tg:
+        tasks = [tg.create_task(_one(sq, tavily, trust_fn)) for sq in plan.sub_questions]
+    return [src for t in tasks for src in t.result()]
