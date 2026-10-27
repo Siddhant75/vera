@@ -1,3 +1,4 @@
+from app.budget import budget_for_brief
 from app.llm import TokenFactoryClient
 from app.memory import Memory
 from app.models import Claim, Verdict
@@ -19,6 +20,8 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
                        llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
                        emit) -> dict:
     stage = {"current": "planning"}
+    from app.telemetry import telemetry as _tel
+    t_start = _tel.snapshot()
     profile = memory.get_profile()
     active_persona = persona or profile.get("persona", "engineer")
     tk = resolve_topic_key(topic, brief)
@@ -67,7 +70,9 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
             "sub_questions": [sq.text for sq in fresh_subs],
             "reused": [sq.text for sq in p.sub_questions if sq.id in reused_sections]}})
         search_plan = p.model_copy(update={"sub_questions": fresh_subs})
-        sources = await search_sources(search_plan, tavily, memory.trust_multiplier)
+        from app.budget import SearchBudget
+        budget = SearchBudget(budget_for_brief(brief))
+        sources = await search_sources(search_plan, tavily, memory.trust_multiplier, budget=budget)
 
         stage["current"] = "drafting"
         await emit({"run_id": run_id, "stage": "drafting", "payload": {"source_count": len(sources)}})
@@ -77,7 +82,8 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
         await emit({"run_id": run_id, "stage": "verifying", "payload": {"claim_count": len(claims)}})
         verdicts = await verify_claims(claims, sources, llm.verifier_models, llm, tavily,
                                        trust_fn=memory.trust_multiplier,
-                                       flagged_claims=memory.negative_claim_texts())
+                                       flagged_claims=memory.negative_claim_texts(),
+                                       budget=budget)
 
         # merge reused claims (ids prefixed r- to avoid collisions) + their prior verdicts
         for sq_id, section in reused_sections.items():
@@ -100,7 +106,14 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
 
         memory.save_run(brief, active_persona, tk, report.model_dump(), run_uuid=run_id)
         memory.save_verdicts(run_id, [v.model_dump() for v in verdicts])
-        await emit({"run_id": run_id, "stage": "done", "payload": {"report": report.model_dump()}})
+        memory.save_sources(run_id, [{"url": s.url, "title": s.title} for s in sources])
+        from app.telemetry import telemetry
+        t_now = telemetry.snapshot()
+        await emit({"run_id": run_id, "stage": "done", "payload": {"report": report.model_dump(), "run_summary": {
+            "searches_used": budget.used, "search_budget": budget.limit,
+            "tf_tokens_run": t_now["tf_tokens"] - t_start["tf_tokens"],
+            "claims": len(claims), "reused": len(reused_sections),
+        }}})
         await emit({"run_id": run_id, "stage": END, "payload": {}})
         return report
     except Exception as exc:

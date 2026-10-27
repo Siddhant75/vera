@@ -59,3 +59,18 @@ async def test_search_failure_propagates():
     with pytest.raises(ExceptionGroup) as gi:
         await search_sources(PLAN, SearchErrorTavily(), trust_fn)
     assert any(isinstance(e, SearchError) for e in gi.value.exceptions)
+
+
+async def test_budget_enforced_in_searcher():
+    from app.budget import SearchBudget
+    # 2 sub-questions, budget 1 → only q1 searched
+    b = SearchBudget(1)
+    out = await search_sources(PLAN, FakeTavily(RESULTS), trust_fn, budget=b)
+    assert b.used == 1
+    assert len(tavily_queries_seen(out)) == 0  # helper below asserts on sources instead
+    q1 = [s for s in out if s.sub_question_id == "q1"]
+    assert q1 and not [s for s in out if s.sub_question_id == "q2"]
+
+
+def tavily_queries_seen(out):
+    return [s for s in out if not s.url]

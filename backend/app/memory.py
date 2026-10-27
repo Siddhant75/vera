@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS verdicts (
     model TEXT NOT NULL,
     web_checked INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS sources (
+    run_uuid TEXT NOT NULL,
+    url TEXT NOT NULL,
+    title TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS feedback (
     run_uuid TEXT NOT NULL,
     claim_id TEXT NOT NULL,
@@ -110,6 +115,18 @@ class Memory:
             "SELECT report_json FROM runs WHERE run_uuid = ?", (str(run_uuid),)
         ).fetchone()
         return self._report_row(row)
+
+    def save_sources(self, run_uuid: str, sources: list[dict]) -> None:
+        self._conn.executemany(
+            "INSERT INTO sources (run_uuid, url, title) VALUES (?, ?, ?)",
+            [(str(run_uuid), s["url"], s.get("title", "")) for s in sources],
+        )
+        self._conn.commit()
+
+    def get_sources(self, run_uuid: str) -> list[dict]:
+        return [{"url": r[0], "title": r[1]} for r in self._conn.execute(
+            "SELECT url, title FROM sources WHERE run_uuid = ?", (str(run_uuid),)
+        ).fetchall()]
 
     def add_feedback(self, run_uuid: str, claim_id: str, helpful: bool,
                      claim_text: str = "") -> None:

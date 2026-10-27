@@ -26,7 +26,10 @@ PROSECUTOR_SCHEMA = {
 
 
 def _evidence(sources: list[Source]) -> str:
-    return "\n\n".join(f"URL: {s.url}\nTITLE: {s.title}\nCONTENT: {s.content}" for s in sources) or "(no sources)"
+    # Read narrow: top 8 trust-ranked sources, 800 chars each — output has a word cap,
+    # so input gets one too. The rest of the fetched pool surfaces as unused sources.
+    trimmed = sources[:8]
+    return "\n\n".join(f"URL: {s.url}\nTITLE: {s.title}\nCONTENT: {s.content[:800]}" for s in trimmed) or "(no sources)"
 
 
 def _resolve(round_verdicts: list[dict]) -> str:
@@ -38,10 +41,21 @@ def _resolve(round_verdicts: list[dict]) -> str:
     return "disputed"
 
 
+def _web_sources(web: list[dict], sq_id: str, trust_fn) -> list[Source]:
+    out = []
+    for w in web:
+        domain = domain_of(w["url"])
+        if trust_fn and trust_fn(domain) <= 0.0:
+            continue  # excluded domains never become verification evidence
+        out.append(Source(url=w["url"], title=w["title"], content=w["content"], sub_question_id=sq_id))
+    return out
+
+
 async def verify_claims(claims: list[Claim], sources: list[Source],
                         models: list[str], llm: TokenFactoryClient,
                         tavily: TavilyClient, trust_fn=None,
-                        max_concurrency: int = 6, flagged_claims: list[str] | None = None) -> list[Verdict]:
+                        max_concurrency: int = 6, flagged_claims: list[str] | None = None,
+                        budget=None) -> list[Verdict]:
     sem = asyncio.Semaphore(max_concurrency)
     strictness = ""
     if flagged_claims:
@@ -50,9 +64,6 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
             "\nThe user previously flagged similar claims as unhelpful or wrong — be extra strict "
             f"about claims of this kind:\n{flagged}"
         )
-    by_q: dict[str, list[Source]] = {}
-    for s in sources:
-        by_q.setdefault(s.sub_question_id, []).append(s)
 
     async def _ask_raw(model: str, messages: list[dict], schema: dict) -> dict:
         try:
@@ -88,13 +99,12 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
         if out.get("suspicions"):
             parts.append(f"PROSECUTOR SUSPICIONS: {out['suspicions']}")
         query = out.get("refutation_query")
-        if query:
+        if query and (budget is None or budget.try_consume()):
             web = await tavily.search(query)
-            for w in web:
-                domain = domain_of(w["url"])
-                if trust_fn and trust_fn(domain) <= 0.0:
-                    continue
-                parts.append(f"REFUTATION EVIDENCE ({w['url']}): {w['title']} — {w['content'][:800]}")
+            for w in _web_sources(web, claim.sub_question_id, trust_fn):
+                parts.append(f"REFUTATION EVIDENCE ({w.url}): {w.title} - {w.content[:800]}")
+        elif query:
+            parts.append("PROSECUTOR: search budget exhausted - refutation search skipped")
         return "\n".join(parts)
 
     async def _verify_one(claim: Claim) -> Verdict:
@@ -104,15 +114,16 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
         round1 = await asyncio.gather(*(_ask(m, claim, evidence) for m in models))
         web_checked = bool(prosecution)
         if not all(r.get("verdict") == "supported" for r in round1):
+            if budget is not None and not budget.try_consume():
+                return Verdict(
+                    claim_id=claim.id, verdict=_resolve(round1),
+                    reason="; ".join(f"{m}: {r.get('reason', '')}" for m, r in zip(models, round1))
+                           + " [budget-limited: web re-check skipped]",
+                    model=",".join(models), web_checked=False,
+                )
             web = await tavily.search(claim.text)
-            web_sources = []
-            for w in web:
-                domain = domain_of(w["url"])
-                if trust_fn and trust_fn(domain) <= 0.0:
-                    continue  # excluded domains never become verification evidence
-                web_sources.append(Source(url=w["url"], title=w["title"], content=w["content"],
-                                          sub_question_id=claim.sub_question_id))
-            evidence = _evidence([*by_q.get(claim.sub_question_id, []), *web_sources])
+            web_srcs = _web_sources(web, claim.sub_question_id, trust_fn)
+            evidence = _evidence([*by_q.get(claim.sub_question_id, []), *web_srcs])
             round1 = await asyncio.gather(*(_ask(m, claim, evidence) for m in models))
             web_checked = True
         return Verdict(
@@ -122,6 +133,10 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
             model=",".join(models),
             web_checked=web_checked,
         )
+
+    by_q: dict[str, list[Source]] = {}
+    for s in sources:
+        by_q.setdefault(s.sub_question_id, []).append(s)
 
     async with asyncio.TaskGroup() as tg:
         tasks = [tg.create_task(_verify_one(c)) for c in claims]

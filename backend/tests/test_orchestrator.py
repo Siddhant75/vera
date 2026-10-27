@@ -142,3 +142,23 @@ async def test_coverage_gate_retries_then_flags(tmp_path):
     assert "cold start behavior" in retry_prompt  # missed requirement injected on retry
     sections_text = " ".join(s.sub_question for s in report.sections)
     assert "Not investigated" in sections_text or "not investigated" in sections_text.lower()
+
+
+async def test_run_summary_and_sources_persisted(tmp_path):
+    llm = make_llm([PLAN, DRAFT, VERDICT_SUP, VERDICT_SUP, NARR])
+    memory = Memory(str(tmp_path / "t.db"))
+    events = []
+
+    async def emit(e):
+        events.append(e)
+
+    report = await run_research("r-sum", "Explain X", "engineer", "", False,
+                                llm, make_tavily(), memory, emit)
+    done = [e for e in events if e["stage"] == "done"][0]
+    rs = done["payload"]["run_summary"]
+    assert rs["searches_used"] == 1 and rs["search_budget"] >= 12
+    assert rs["claims"] == 1 and rs["tf_tokens_run"] >= 0  # fakes bypass telemetry; real runs report
+    assert "reused" in rs
+    saved = memory.get_sources("r-sum")
+    assert any(s["url"] == "https://a.com/1" for s in saved)
+    assert report.sources_unused == []  # a.com/1 cited → nothing unused

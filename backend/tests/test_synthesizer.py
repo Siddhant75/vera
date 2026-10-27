@@ -67,3 +67,24 @@ async def test_claim_proofs_surfaced():
     llm = FakeLLM([NARR_OK])
     report = await synthesize("b", "founder", "k", PLAN, [CLAIM], VERDICTS, [SOURCE], None, llm, "m-syn")
     assert report.claim_proofs == {"c1": {"verdict": "disputed", "reason": "split", "web_checked": False}}
+
+
+CITED = Claim(id="c1", sub_question_id="q1", text="X", citation_urls=["https://a.com/1"])
+UNUSED_SRC = Source(url="https://unused.com/z", title="U", content="c", sub_question_id="q1")
+
+
+async def test_output_caps_and_unused_sources():
+    long_narr = {"narrative": "word " * 400, "open_questions": [f"q{i}" for i in range(15)]}
+    llm = FakeLLM([long_narr])
+    report = await synthesize("b", "founder", "k", PLAN, [CITED], [], [SOURCE, UNUSED_SRC], None, llm, "m-syn",
+                              run_max_tokens=400)
+    assert len(report.open_questions) <= 8
+    assert report.sources_unused == [{"url": "https://unused.com/z", "title": "U"}]  # cited a.com/1 excluded
+    assert llm.prompts  # section call happened
+
+
+async def test_changes_capped():
+    llm = FakeLLM([{"changes": [f"c{i}" for i in range(15)]}, NARR_OK])
+    report = await synthesize("b", "founder", "k", PLAN, [CITED], [], [SOURCE], PRIOR, llm, "m-syn",
+                              run_max_tokens=400)
+    assert len(report.changes) <= 8

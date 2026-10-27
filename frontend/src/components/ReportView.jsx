@@ -78,6 +78,17 @@ export default function ReportView({ runId, report }) {
           <ul>{report.open_questions.map((q, i) => <li key={i}>{q}</li>)}</ul>
         </section>
       )}
+      {report.sources_unused?.length > 0 && (
+        <section>
+          <h3>Sources Vera saw but didn't cite</h3>
+          <p className="muted">Fetched from the live web but not needed for any claim — judge them yourself.</p>
+          <ul className="unused-sources">
+            {report.sources_unused.map((s, i) => (
+              <li key={i}><a href={s.url} target="_blank" rel="noreferrer">{s.title || s.url}</a></li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

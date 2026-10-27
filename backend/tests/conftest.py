@@ -41,7 +41,7 @@ class FakeLLM:
         self.models_used.append(model)
         return json.dumps(self._next(model))
 
-    async def chat_json(self, model, messages, schema):
+    async def chat_json(self, model, messages, schema, max_tokens=4096):
         self.prompts.append(messages)
         self.models_used.append(model)
         return self._next(model)

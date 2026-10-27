@@ -5,7 +5,9 @@ from app.models import ResearchPlan, Source
 from app.search import TavilyClient
 
 
-async def _one(sq, tavily: TavilyClient, trust_fn) -> list[Source]:
+async def _one(sq, tavily: TavilyClient, trust_fn, budget=None) -> list[Source]:
+    if budget is not None and not budget.try_consume():
+        return []  # search budget exhausted: sub-question degrades to zero sources, visibly
     results = await tavily.search(sq.text)
     out = []
     for r in results:
@@ -19,7 +21,7 @@ async def _one(sq, tavily: TavilyClient, trust_fn) -> list[Source]:
 
 
 async def search_sources(plan: ResearchPlan, tavily: TavilyClient,
-                         trust_fn) -> list[Source]:
+                         trust_fn, budget=None) -> list[Source]:
     async with asyncio.TaskGroup() as tg:
-        tasks = [tg.create_task(_one(sq, tavily, trust_fn)) for sq in plan.sub_questions]
+        tasks = [tg.create_task(_one(sq, tavily, trust_fn, budget)) for sq in plan.sub_questions]
     return [src for t in tasks for src in t.result()]

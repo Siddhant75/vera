@@ -134,3 +134,31 @@ async def test_prosecutor_no_query_no_search():
     out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
     assert tavily.queries == []
     assert out[0].verdict == "supported"
+
+
+async def test_prosecutor_skips_search_when_budget_out():
+    from app.budget import SearchBudget
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP], "mB": [SUP]})
+    b = SearchBudget(0)
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, FakeTavily(), budget=b)
+    assert out[0].verdict == "supported"  # vote unaffected — refutation search optional
+    assert "budget-limited" not in out[0].reason
+
+
+async def test_recheck_skipped_when_budget_out():
+    from app.budget import SearchBudget
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE_CLEAN, SUP], "mB": [UNC]})
+    b = SearchBudget(0)
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, FakeTavily(), budget=b)
+    assert "budget-limited" in out[0].reason
+    assert out[0].verdict == "disputed"  # stands on existing evidence
+
+
+async def test_evidence_capped_8_sources_800_chars():
+    sources = [Source(url=f"https://a.com/{i}", title=f"T{i}", content="y" * 2000, sub_question_id="q1")
+               for i in range(12)]
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE_CLEAN, SUP], "mB": [SUP]})
+    await verify_claims([CLAIM], sources, ["mA", "mB"], llm, FakeTavily())
+    vote_prompt = str(llm.prompts[1])
+    assert vote_prompt.count("https://a.com/") <= 8
+    assert "y" * 801 not in vote_prompt

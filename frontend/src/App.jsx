@@ -14,11 +14,13 @@ export default function App() {
   const [topic, setTopic] = useState("");
   const [events, setEvents] = useState([]);
   const [report, setReport] = useState(null);
+  const [runSummary, setRunSummary] = useState(null);
   const [running, setRunning] = useState(false);
 
   const launch = async (delta) => {
     setEvents([]);
     setReport(null);
+    setRunSummary(null);
     setRunning(true);
     try {
       const runId = await runResearch({ brief, topic, persona, delta });
@@ -26,6 +28,7 @@ export default function App() {
         setEvents((prev) => [...prev, e]);
         if (e.stage === "done") {
           setReport(e.payload.report);
+          setRunSummary(e.payload.run_summary || null);
           setRunning(false);
         } else if (e.stage === "error") {
           setRunning(false);
@@ -69,6 +72,12 @@ export default function App() {
       </div>
 
       {events.length > 0 && <PipelineView events={events} />}
+      {runSummary && (
+        <div className="run-summary">
+          Searches {runSummary.searches_used}/{runSummary.search_budget} · {runSummary.tf_tokens_run} tokens ·{" "}
+          {runSummary.claims} claims{runSummary.reused > 0 ? ` · ${runSummary.reused} reused` : ""}
+        </div>
+      )}
       <ReportView runId={report ? events.find((e) => e.run_id)?.run_id : null} report={report} />
 
       <footer>
