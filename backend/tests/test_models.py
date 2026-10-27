@@ -46,3 +46,8 @@ def test_report_defaults_and_round_trip():
     assert r.changes == []
     assert r.claim_verdicts == {}
     assert ResearchReport(**r.model_dump()) == r
+
+
+def test_report_claim_proofs_default():
+    r = ResearchReport(brief="b", persona="p", topic_key="k", sections=[], open_questions=[], verdict_summary={})
+    assert r.claim_proofs == {}

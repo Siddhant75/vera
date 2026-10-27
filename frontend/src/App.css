@@ -157,3 +157,13 @@ textarea, input {
 .feedback-btns button { background: none; border: none; cursor: pointer; font-size: 14px; }
 
 footer { margin-top: 32px; color: var(--muted); text-align: center; }
+
+.claim-line { display: flex; align-items: baseline; gap: 8px; }
+.claim-proof {
+  margin: 6px 0 4px 34px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--accent);
+  background: var(--bg);
+  font-size: 13px;
+}
+.claim-proof p { margin: 4px 0; color: var(--muted); }

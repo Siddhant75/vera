@@ -36,10 +36,10 @@ export async function getTelemetry() {
   return (await fetch(`${BASE}/api/telemetry`)).json();
 }
 
-export async function sendFeedback(runId, claimId, helpful) {
+export async function sendFeedback(runId, claimId, helpful, claimText) {
   return (await fetch(`${BASE}/api/feedback`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ run_id: runId, claim_id: claimId, helpful }),
+    body: JSON.stringify({ run_id: runId, claim_id: claimId, helpful, claim_text: claimText || "" }),
   })).json();
 }

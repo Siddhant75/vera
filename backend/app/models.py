@@ -50,4 +50,5 @@ class ResearchReport(BaseModel):
     open_questions: list[str] = Field(default_factory=list)
     verdict_summary: dict[str, int] = Field(default_factory=dict)
     claim_verdicts: dict[str, str] = Field(default_factory=dict)  # claim_id → final verdict
+    claim_proofs: dict[str, dict] = Field(default_factory=dict)   # claim_id → {verdict, reason, web_checked}
     changes: list[str] = Field(default_factory=list)  # delta mode: vs prior report

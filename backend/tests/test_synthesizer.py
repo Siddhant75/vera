@@ -61,3 +61,9 @@ async def test_zero_claim_subquestion_notes_gap():
     assert "no sources found" in report.sections[0].narrative.lower()
     assert "What is X?" in report.open_questions
     assert llm.prompts == []  # no LLM call at all
+
+
+async def test_claim_proofs_surfaced():
+    llm = FakeLLM([NARR_OK])
+    report = await synthesize("b", "founder", "k", PLAN, [CLAIM], VERDICTS, [SOURCE], None, llm, "m-syn")
+    assert report.claim_proofs == {"c1": {"verdict": "disputed", "reason": "split", "web_checked": False}}
