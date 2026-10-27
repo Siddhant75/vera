@@ -14,10 +14,11 @@ Hard submission constraints (verified from the Devpost rules — never violate):
 
 ## Status & Plan
 
-As of 2026-10-27 the repo is pre-scaffold. The authoritative build document is
-`docs/superpowers/plans/2026-10-27-vera.md` — 14 TDD tasks with exact interfaces, executed
-via the superpowers plugin (`superpowers:executing-plans` / `superpowers:subagent-driven-development`).
-Read it before writing any code: it pins file layout, pydantic schemas, function signatures, and test names.
+As of 2026-10-27 the build is complete and real-API verified: 62/62 backend tests green, frontend builds, full pipeline run succeeded live (84 claims verified, 253 Token Factory calls, 21 Tavily queries in one run). Models pinned in `.env`: planner `nvidia/nemotron-3-super-120b-a12b`, verifiers `deepseek-ai/DeepSeek-V4-Pro` + `Qwen/Qwen3-235B-A22B-Instruct-2507`. The build plan (TDD tasks, interfaces) lives at `docs/superpowers/plans/2026-10-27-vera.md`.
+
+Known machine quirk: Avast TLS interception breaks Python `ssl` — `truststore.inject_into_ssl()` shim in `app/main.py` handles it; don't remove.
+
+Remaining: host demo URL, record <3min YouTube video, devpost submission (deadline Oct 30, 10:00am PDT).
 
 Design decisions locked (do not relitigate): Personal AI track; differentiation = user context model + research memory with delta mode + per-source trust (all existing open-source deep-research repos are stateless); moat = adversarial cross-model claim verification (impossible with a single model — the sponsor constraint is the product).
 
