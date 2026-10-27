@@ -6,6 +6,7 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS profile (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_uuid TEXT,
     brief TEXT NOT NULL,
     persona TEXT NOT NULL,
     topic_key TEXT NOT NULL,
@@ -13,7 +14,7 @@ CREATE TABLE IF NOT EXISTS runs (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS verdicts (
-    run_id INTEGER NOT NULL,
+    run_uuid TEXT NOT NULL,
     claim_id TEXT NOT NULL,
     verdict TEXT NOT NULL,
     reason TEXT NOT NULL,
@@ -21,7 +22,7 @@ CREATE TABLE IF NOT EXISTS verdicts (
     web_checked INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS feedback (
-    run_id INTEGER NOT NULL,
+    run_uuid TEXT NOT NULL,
     claim_id TEXT NOT NULL,
     helpful INTEGER NOT NULL
 );
@@ -51,19 +52,20 @@ class Memory:
         )
         self._conn.commit()
 
-    def save_run(self, brief: str, persona: str, topic_key: str, report: dict) -> int:
+    def save_run(self, brief: str, persona: str, topic_key: str, report: dict,
+                 run_uuid: str | None = None) -> int:
         cur = self._conn.execute(
-            "INSERT INTO runs (brief, persona, topic_key, report_json) VALUES (?, ?, ?, ?)",
-            (brief, persona, topic_key, json.dumps(report)),
+            "INSERT INTO runs (run_uuid, brief, persona, topic_key, report_json) VALUES (?, ?, ?, ?, ?)",
+            (run_uuid, brief, persona, topic_key, json.dumps(report)),
         )
         self._conn.commit()
         return cur.lastrowid
 
-    def save_verdicts(self, run_id: int, verdicts: list[dict]) -> None:
+    def save_verdicts(self, run_uuid: str, verdicts: list[dict]) -> None:
         self._conn.executemany(
-            "INSERT INTO verdicts (run_id, claim_id, verdict, reason, model, web_checked) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO verdicts (run_uuid, claim_id, verdict, reason, model, web_checked) VALUES (?, ?, ?, ?, ?, ?)",
             [
-                (run_id, v["claim_id"], v["verdict"], v["reason"], v["model"], int(v.get("web_checked", False)))
+                (run_uuid, v["claim_id"], v["verdict"], v["reason"], v["model"], int(v.get("web_checked", False)))
                 for v in verdicts
             ],
         )
@@ -79,16 +81,16 @@ class Memory:
         ).fetchone()
         return self._report_row(row)
 
-    def get_report(self, run_id: int) -> dict | None:
+    def get_report(self, run_uuid: str) -> dict | None:
         row = self._conn.execute(
-            "SELECT report_json FROM runs WHERE id = ?", (run_id,)
+            "SELECT report_json FROM runs WHERE run_uuid = ?", (str(run_uuid),)
         ).fetchone()
         return self._report_row(row)
 
-    def add_feedback(self, run_id: int, claim_id: str, helpful: bool) -> None:
+    def add_feedback(self, run_uuid: str, claim_id: str, helpful: bool) -> None:
         self._conn.execute(
-            "INSERT INTO feedback (run_id, claim_id, helpful) VALUES (?, ?, ?)",
-            (run_id, claim_id, int(helpful)),
+            "INSERT INTO feedback (run_uuid, claim_id, helpful) VALUES (?, ?, ?)",
+            (str(run_uuid), claim_id, int(helpful)),
         )
         self._conn.commit()
 

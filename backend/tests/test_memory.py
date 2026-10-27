@@ -31,9 +31,9 @@ def test_last_report_most_recent_wins(tmp_path):
 
 def test_get_report(tmp_path):
     m = Memory(str(tmp_path / "t.db"))
-    run_id = m.save_run("brief", "engineer", "k", REPORT)
-    assert m.get_report(run_id) == REPORT
-    assert m.get_report(999) is None
+    m.save_run("brief", "engineer", "k", REPORT, run_uuid="r1")
+    assert m.get_report("r1") == REPORT
+    assert m.get_report("nope") is None
 
 
 def test_trust_multiplier(tmp_path):
@@ -45,7 +45,7 @@ def test_trust_multiplier(tmp_path):
 
 def test_add_feedback_saves_row(tmp_path):
     m = Memory(str(tmp_path / "t.db"))
-    run_id = m.save_run("brief", "engineer", "k", REPORT)
-    m.save_verdicts(run_id, [{"claim_id": "c1", "verdict": "supported", "reason": "r", "model": "m"}])
-    m.add_feedback(run_id, "c1", False)
+    m.save_run("brief", "engineer", "k", REPORT, run_uuid="r1")
+    m.save_verdicts("r1", [{"claim_id": "c1", "verdict": "supported", "reason": "r", "model": "m"}])
+    m.add_feedback("r1", "c1", False)
     assert m.feedback_count() == 1

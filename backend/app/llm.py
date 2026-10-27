@@ -12,7 +12,12 @@ class LLMError(Exception):
 class TokenFactoryClient:
     """Nebius Token Factory client (OpenAI-compatible /chat/completions)."""
 
-    def __init__(self, base_url: str, api_key: str, http: httpx.AsyncClient | None = None):
+    def __init__(self, base_url: str, api_key: str, http: httpx.AsyncClient | None = None,
+                 planner_model: str = "", drafter_model: str = "",
+                 verifier_models: list[str] | None = None):
+        self.planner_model = planner_model
+        self.drafter_model = drafter_model or planner_model
+        self.verifier_models = verifier_models or []
         if http is not None:
             http.base_url = base_url
             self._http = http

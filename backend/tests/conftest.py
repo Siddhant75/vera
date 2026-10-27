@@ -16,11 +16,15 @@ class FakeLLM:
     """Scripted TokenFactoryClient double. Records prompts; pops scripted results.
     `model_responses` keys by model name (pops first from model queue, else shared)."""
 
-    def __init__(self, responses=None, model_responses=None):
+    def __init__(self, responses=None, model_responses=None, planner_model="planner",
+                 drafter_model=None, verifier_models=None):
         self.prompts: list[list[dict]] = []
         self.responses: list = list(responses or [])
         self.model_responses: dict[str, list] = {k: list(v) for k, v in (model_responses or {}).items()}
         self.models_used: list[str] = []
+        self.planner_model = planner_model
+        self.drafter_model = drafter_model or planner_model
+        self.verifier_models = verifier_models or []
 
     def queue(self, *responses):
         self.responses.extend(responses)
