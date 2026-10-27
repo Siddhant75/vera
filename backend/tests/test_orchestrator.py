@@ -25,7 +25,7 @@ def make_tavily():
 
 
 async def test_happy_path_order_and_persistence(tmp_path):
-    llm = make_llm([PLAN, DRAFT, VERDICT_SUP, NARR])
+    llm = make_llm([PLAN, DRAFT, VERDICT_SUP, VERDICT_SUP, NARR])
     memory = Memory(str(tmp_path / "t.db"))
     events = []
 
@@ -57,7 +57,7 @@ async def test_llm_error_emits_error_event(tmp_path):
 
 
 async def test_delta_without_prior_falls_back_full(tmp_path):
-    llm = make_llm([PLAN, DRAFT, VERDICT_SUP, NARR])
+    llm = make_llm([PLAN, DRAFT, VERDICT_SUP, VERDICT_SUP, NARR])
     tavily = FakeTavily(SOURCES)
     memory = Memory(str(tmp_path / "t.db"))
     events = []
@@ -73,7 +73,7 @@ async def test_delta_without_prior_falls_back_full(tmp_path):
 async def test_delta_with_prior_in_prompt_and_changes(tmp_path):
     prior = {"sections": [{"sub_question": "What is X?", "narrative": "old", "claims": []}],
              "open_questions": ["prior q?"]}
-    llm = make_llm([PLAN, DRAFT, VERDICT_SUP, {"changes": ["now supported"]}, NARR])
+    llm = make_llm([PLAN, DRAFT, VERDICT_SUP, VERDICT_SUP, {"changes": ["now supported"]}, NARR])
     tavily = FakeTavily(SOURCES)
     memory = Memory(str(tmp_path / "t.db"))
     memory.save_run("old brief", "engineer", "explain-x", prior)

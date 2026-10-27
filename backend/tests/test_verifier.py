@@ -19,30 +19,30 @@ def verdict(model, v, web=False):
 
 
 async def test_all_supported_no_web_check():
-    llm = FakeLLM(model_responses={"mA": [SUP], "mB": [SUP]})
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE_CLEAN, SUP], "mB": [SUP]})
     tavily = FakeTavily()
     out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
     assert out[0].verdict == "supported"
-    assert out[0].web_checked is False
+    assert out[0].web_checked is False  # prosecutor clean, no refutation query
     assert tavily.queries == []
-    assert llm.models_used == ["mA", "mB"]  # exactly one call per model
+    assert llm.models_used == ["mA", "mA", "mB"]  # prosecutor pass, then vote
 
 
 async def test_disagreement_triggers_web_recheck():
     llm = FakeLLM(model_responses={
-        "mA": [SUP, SUP],
+        "mA": [PROSECUTE, SUP, SUP],
         "mB": [CON, CON],
     })
     tavily = FakeTavily({"X is true": [{"url": "https://w.com/x", "title": "W", "content": "web evidence"}]})
     out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
-    assert tavily.queries == ["X is true"]
+    assert "X is true" in tavily.queries  # prosecutor searched "X is wrong" first
     assert out[0].web_checked is True
     assert out[0].verdict == "contradicted"  # any contradicted wins
-    assert llm.models_used == ["mA", "mB", "mA", "mB"]  # re-asked
+    assert llm.models_used == ["mA", "mA", "mB", "mA", "mB"]  # prosecutor, vote, re-vote
 
 
 async def test_supported_plus_uncertain_is_disputed():
-    llm = FakeLLM(model_responses={"mA": [SUP, SUP], "mB": [UNC, UNC]})
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP, SUP], "mB": [UNC, UNC]})
     tavily = FakeTavily()
     out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
     assert out[0].web_checked is True
@@ -50,7 +50,7 @@ async def test_supported_plus_uncertain_is_disputed():
 
 
 async def test_model_error_treated_as_uncertain():
-    llm = FakeLLM(model_responses={"mA": [SUP, SUP], "mB": [ValueError("boom"), UNC]})
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP, SUP], "mB": [ValueError("boom"), UNC]})
     tavily = FakeTavily()
     out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
     assert out[0].verdict == "disputed"
@@ -58,7 +58,7 @@ async def test_model_error_treated_as_uncertain():
 
 
 async def test_prompt_contains_claim_and_evidence():
-    llm = FakeLLM(model_responses={"mA": [SUP], "mB": [SUP]})
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE_CLEAN, SUP], "mB": [SUP]})
     await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, FakeTavily())
     flat = str(llm.prompts[0])
     assert "X is true" in flat
@@ -66,7 +66,7 @@ async def test_prompt_contains_claim_and_evidence():
 
 
 async def test_web_recheck_respects_trust_exclusion():
-    llm = FakeLLM(model_responses={"mA": [SUP, SUP], "mB": [CON, CON]})
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP, SUP], "mB": [CON, CON]})
     tavily = FakeTavily({"X is true": [
         {"url": "https://excluded.com/x", "title": "X", "content": "excluded evidence"},
         {"url": "https://allowed.com/y", "title": "Y", "content": "allowed evidence"},
@@ -106,4 +106,31 @@ async def test_flagged_claims_raise_strictness():
     llm = FakeLLM(model_responses={"mA": [SUP], "mB": [SUP]})
     await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, FakeTavily(),
                         flagged_claims=["K8s is always cheaper"])
-    assert "K8s is always cheaper" in str(llm.prompts[0])
+    assert "K8s is always cheaper" in str(llm.prompts[1:])  # voters carry strictness, not prosecutor
+
+
+PROSECUTE = {"refutation_query": "X is wrong", "suspicions": "costs may be hidden"}
+PROSECUTE_CLEAN = {"refutation_query": None, "suspicions": ""}
+
+async def test_prosecutor_runs_before_vote():
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP], "mB": [SUP]})
+    tavily = FakeTavily()
+    await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
+    assert llm.models_used == ["mA", "mA", "mB"]  # prosecutor (first model) then vote
+
+
+async def test_prosecutor_query_drives_search():
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP], "mB": [SUP]})
+    tavily = FakeTavily({"X is wrong": [{"url": "https://allowed.com/r", "title": "R", "content": "refuting data"}]})
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
+    assert "X is wrong" in tavily.queries
+    assert "refuting data" in str(llm.prompts[1:])  # refutation evidence reaches voters
+    assert out[0].web_checked is True
+
+
+async def test_prosecutor_no_query_no_search():
+    llm = FakeLLM(model_responses={"mA": [{"refutation_query": None, "suspicions": "clean"}, SUP], "mB": [SUP]})
+    tavily = FakeTavily()
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
+    assert tavily.queries == []
+    assert out[0].verdict == "supported"

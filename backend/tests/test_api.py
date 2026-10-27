@@ -40,7 +40,7 @@ async def test_profile_round_trip(tmp_path):
 
 
 async def test_research_sse_report_feedback_telemetry(tmp_path):
-    llm = FakeLLM([PLAN, DRAFT, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    llm = FakeLLM([PLAN, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
     app, memory = make_app(tmp_path, llm, FakeTavily(SOURCES))
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
         r = await c.post("/api/research", json={"brief": "Explain X", "topic": "Explain X"})
@@ -67,7 +67,7 @@ async def test_research_sse_report_feedback_telemetry(tmp_path):
 
 
 async def test_sse_late_subscriber_gets_replay(tmp_path):
-    llm = FakeLLM([PLAN, DRAFT, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    llm = FakeLLM([PLAN, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
     app, _ = make_app(tmp_path, llm, FakeTavily(SOURCES))
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
         run_id = (await c.post("/api/research", json={"brief": "Explain X"})).json()["run_id"]
@@ -80,7 +80,7 @@ async def test_sse_late_subscriber_gets_replay(tmp_path):
 
 
 async def test_background_task_registered(tmp_path):
-    llm = FakeLLM([PLAN, DRAFT, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    llm = FakeLLM([PLAN, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
     app, _ = make_app(tmp_path, llm, FakeTavily(SOURCES))
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
         await c.post("/api/research", json={"brief": "Explain X"})
@@ -98,7 +98,7 @@ async def test_error_run_reports_failed_stage(tmp_path):
 
 
 async def test_budget_guard_429(tmp_path, monkeypatch):
-    llm = FakeLLM([PLAN, DRAFT, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    llm = FakeLLM([PLAN, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
     memory = Memory(str(tmp_path / "t.db"))
     from app.main import create_app as ca
     app = ca(llm=llm, tavily=FakeTavily(SOURCES), memory=memory, daily_token_budget=1000)
