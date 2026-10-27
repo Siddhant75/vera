@@ -105,8 +105,8 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
     return app
 
 
-def build_app() -> FastAPI:
-    settings = Settings()
+def build_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or Settings()
     if not settings.planner_model or len(settings.verifier_models) < 2:
         raise ValueError(
             "PLANNER_MODEL and VERIFIER_MODELS (>=2, excluding planner) must be configured in .env"
