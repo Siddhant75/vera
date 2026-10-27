@@ -46,3 +46,12 @@ async def test_fully_uncited_claim_dropped():
     llm = FakeLLM([{"claims": [{"text": "no cites", "citation_urls": []}]}, {"claims": []}])
     out = await draft_claims("b", PLAN, SOURCES, profile(), llm, "m-draft")
     assert out == []
+
+
+async def test_long_source_content_trimmed():
+    huge = "x" * 5000
+    sources = [Source(url="https://a.com/1", title="A", content=huge, sub_question_id="q1")]
+    llm = FakeLLM([{"claims": []}])
+    await draft_claims("b", PLAN, sources, profile(), llm, "m-draft")
+    assert huge not in str(llm.prompts[0])
+    assert "x" * 1201 not in str(llm.prompts[0])  # each source capped ~1200 chars

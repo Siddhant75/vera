@@ -44,5 +44,8 @@ async def plan(brief: str, persona: str, topic_key_in: str, profile: dict,
         {"role": "user", "content": user},
     ], PLAN_SCHEMA)
     subs = [SubQuestion(id=f"q{i+1}", text=item["text"])
-            for i, item in enumerate(data.get("sub_questions", []))]
+            for i, item in enumerate(data.get("sub_questions", []))
+            if item.get("text")]
+    if not subs:
+        raise ValueError("planner returned no sub-questions")
     return ResearchPlan(brief=brief, persona=persona, topic_key=topic_key_in, sub_questions=subs)

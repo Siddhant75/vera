@@ -28,14 +28,8 @@ class TokenFactoryClient:
                 timeout=120,
             )
 
-    async def chat(self, model: str, messages: list[dict], max_tokens: int = 2000,
-                   json_schema: dict | None = None) -> str:
+    async def chat(self, model: str, messages: list[dict], max_tokens: int = 2000) -> str:
         payload: dict = {"model": model, "messages": messages, "max_tokens": max_tokens}
-        if json_schema is not None:
-            payload["response_format"] = {
-                "type": "json_schema",
-                "json_schema": {"name": "result", "schema": json_schema},
-            }
         resp = await self._http.post("/chat/completions", json=payload)
         if resp.status_code != 200:
             raise LLMError(f"token factory {resp.status_code}: {resp.text[:200]}")
@@ -44,11 +38,22 @@ class TokenFactoryClient:
         telemetry.add(tf_calls=1, tf_tokens=usage.get("total_tokens", 0) or 0)
         return data["choices"][0]["message"]["content"]
 
-    async def chat_json(self, model: str, messages: list[dict], schema: dict) -> dict:
+    async def chat_json(self, model: str, messages: list[dict], schema: dict,
+                        max_tokens: int = 4096) -> dict:
+        # No response_format json_schema: it garbles output on some Token Factory reasoning
+        # models (Nemotron-3 family). Schema goes into the prompt; braces extracted from prose.
+        schema_note = {
+            "role": "system",
+            "content": f"Respond with ONLY JSON matching this schema: {json.dumps(schema)}",
+        }
+        messages = [*messages, schema_note]
         for _attempt in range(2):
-            content = await self.chat(model, messages, json_schema=schema)
+            content = await self.chat(model, messages, max_tokens=max_tokens)
             try:
-                parsed = json.loads(content)
+                start, end = content.find("{"), content.rfind("}")
+                if start == -1 or end <= start:
+                    raise json.JSONDecodeError("no object", content, 0)
+                parsed = json.loads(content[start:end + 1])
             except (json.JSONDecodeError, TypeError):
                 continue
             if isinstance(parsed, dict):

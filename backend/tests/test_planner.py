@@ -32,5 +32,12 @@ async def test_prior_report_open_questions_in_prompt():
     assert "is RAG still needed?" in str(llm.prompts[0])
 
 
+async def test_empty_plan_raises():
+    import pytest
+    llm = FakeLLM([{"sub_questions": []}])
+    with pytest.raises(ValueError, match="no sub-questions"):
+        await plan("Explain X", "founder", "k", PROFILE, None, llm, "m-planner")
+
+
 def test_topic_key_slug():
     assert topic_key("Should we adopt Kubernetes?") == "should-we-adopt-kubernetes"

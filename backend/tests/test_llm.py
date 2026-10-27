@@ -35,9 +35,11 @@ async def test_chat_returns_content():
 @pytest.mark.asyncio
 async def test_chat_json_parses_and_counts_telemetry():
     body = dict(CHAT_BODY, choices=[{"message": {"content": json.dumps({"a": 1})}}])
+    captured = {}
 
     async def _run():
         def handler(request: httpx.Request) -> httpx.Response:
+            captured["payload"] = json.loads(request.read())
             return httpx.Response(200, json=body)
 
         c = _client(handler)
@@ -46,9 +48,45 @@ async def test_chat_json_parses_and_counts_telemetry():
         return out
 
     assert await _run() == {"a": 1}
+    assert "response_format" not in captured["payload"]  # garbles reasoning models; schema goes in prompt
+    assert "object" in str(captured["payload"]["messages"])  # schema embedded in prompt
     snap = telemetry.telemetry.snapshot()
     assert snap["tf_calls"] == 1
     assert snap["tf_tokens"] == 42
+
+
+@pytest.mark.asyncio
+async def test_chat_json_extracts_from_fenced_prose():
+    fenced = "Reasoning...\n```json\n{\"ok\": true}\n```"
+    body = dict(CHAT_BODY, choices=[{"message": {"content": fenced}}])
+
+    async def _run():
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=body)
+
+        c = _client(handler)
+        out = await c.chat_json("m1", [], {"type": "object"})
+        await c._http.aclose()
+        return out
+
+    assert await _run() == {"ok": True}
+
+
+@pytest.mark.asyncio
+async def test_chat_json_generous_token_budget():
+    captured = {}
+
+    async def _run():
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["payload"] = json.loads(request.read())
+            return httpx.Response(200, json=dict(CHAT_BODY, choices=[{"message": {"content": "{\"a\": 1}"}}]))
+
+        c = _client(handler)
+        await c.chat_json("m1", [], {"type": "object"})
+        await c._http.aclose()
+
+    await _run()
+    assert captured["payload"]["max_tokens"] >= 4096  # claim lists truncate at 2000
 
 
 @pytest.mark.asyncio

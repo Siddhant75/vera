@@ -33,7 +33,9 @@ async def draft_claims(brief: str, plan: ResearchPlan, sources: list[Source],
         if not q_sources:
             continue  # no evidence → no claims, no hallucinated fill
         allowed = {s.url for s in q_sources}
-        evidence = "\n\n".join(f"URL: {s.url}\nTITLE: {s.title}\nCONTENT: {s.content}" for s in q_sources)
+        evidence = "\n\n".join(
+            f"URL: {s.url}\nTITLE: {s.title}\nCONTENT: {s.content[:1200]}" for s in q_sources
+        )
         data = await llm.chat_json(model, [
             {"role": "system", "content": (
                 f"You are a research drafter writing for a {profile.get('persona', 'engineer')}. "

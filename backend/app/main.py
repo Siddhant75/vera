@@ -6,6 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+try:
+    import truststore
+    truststore.inject_into_ssl()  # machine-local TLS stacks (e.g. AV interception) break httpx
+except ImportError:
+    pass
+
 from app.config import Settings
 from app.events import bus, format_sse
 from app.llm import TokenFactoryClient
