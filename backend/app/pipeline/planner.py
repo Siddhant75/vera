@@ -10,7 +10,11 @@ PLAN_SCHEMA = {
             "type": "array",
             "items": {
                 "type": "object",
-                "properties": {"id": {"type": "string"}, "text": {"type": "string"}},
+                "properties": {
+                    "id": {"type": "string"},
+                    "text": {"type": "string"},
+                    "reuse_prior_sq": {"type": ["string", "null"]},
+                },
                 "required": ["id", "text"],
             },
         }
@@ -30,9 +34,15 @@ async def plan(brief: str, persona: str, topic_key_in: str, profile: dict,
     prior_note = ""
     if prior_report:
         open_qs = "\n".join(f"- {q}" for q in prior_report.get("open_questions", []))
+        prior_sections = "\n".join(
+            f"- {s.get('sub_question', '')}" for s in prior_report.get("sections", [])
+        )
         prior_note = (
-            f"\n\nThe user researched this topic before. Previous open questions:\n{open_qs}\n"
-            "Focus the sub-questions on changes, updates and resolving those open questions."
+            f"\n\nThe user researched this topic before. Prior sub-questions:\n{prior_sections}\n"
+            f"Previous open questions:\n{open_qs}\n"
+            "Focus the sub-questions on changes, updates and resolving those open questions. "
+            "If a prior sub-question is still fully covered by the previous research and needs no "
+            "fresh search, set reuse_prior_sq to that prior sub-question's exact text."
         )
     ctx = "\n".join(filter(None, [
         f"Role: {profile.get('role_context', '')}",
@@ -50,7 +60,7 @@ async def plan(brief: str, persona: str, topic_key_in: str, profile: dict,
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ], PLAN_SCHEMA)
-    subs = [SubQuestion(id=f"q{i+1}", text=item["text"])
+    subs = [SubQuestion(id=f"q{i+1}", text=item["text"], reuse_prior_sq=item.get("reuse_prior_sq"))
             for i, item in enumerate(data.get("sub_questions", []))
             if item.get("text")]
     if not subs:

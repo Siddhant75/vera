@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 class SubQuestion(BaseModel):
     id: str
     text: str
+    reuse_prior_sq: str | None = None  # delta mode: name of prior section to reuse verbatim
 
 
 class ResearchPlan(BaseModel):

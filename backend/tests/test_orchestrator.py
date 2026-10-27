@@ -93,3 +93,32 @@ async def test_topic_param_controls_key():
     from app.pipeline.orchestrator import resolve_topic_key
     assert resolve_topic_key("", "Brief text here") == "brief-text-here"
     assert resolve_topic_key("My Topic", "Brief text here") == "my-topic"
+
+
+async def test_delta_reuses_prior_subquestions(tmp_path):
+    prior = {"sections": [{"sub_question": "What is X?", "narrative": "old n", "claims":
+             [{"id": "c1", "text": "prior claim", "citation_urls": ["https://old.com/1"]}]}],
+             "open_questions": []}
+    memory = Memory(str(tmp_path / "t.db"))
+    memory.save_run("old brief", "engineer", "explain-x", prior, run_uuid="old1")
+    memory.save_verdicts("old1", [{"claim_id": "c1", "verdict": "supported", "reason": "ok", "model": "m"}])
+
+    PLAN_REUSE = {"sub_questions": [
+        {"id": "a", "text": "What is X?", "reuse_prior_sq": "What is X?"},
+        {"id": "b", "text": "Why X?"},
+    ]}
+    DRAFT_Q2 = {"claims": [{"text": "because Y", "citation_urls": ["https://new.com/2"]}]}
+    llm = make_llm([PLAN_REUSE, DRAFT_Q2, VERDICT_SUP, VERDICT_SUP, {"changes": ["X confirmed"]}, NARR, NARR])
+    tavily = FakeTavily({"Why X?": [{"url": "https://new.com/2", "title": "N", "content": "c"}]})
+    events = []
+
+    async def emit(e):
+        events.append(e)
+
+    report = await run_research("r9", "Explain X", "engineer", "Explain X", True,
+                                llm, tavily, memory, emit)
+    assert [q for q in tavily.queries] == ["Why X?"]  # reused sub-question never re-searched
+    reused = [c for sec in report.sections for c in sec.claims if c.id.startswith("r-")]
+    assert len(reused) == 1 and reused[0].text == "prior claim"
+    assert report.claim_proofs["r-c1"]["verdict"] == "supported"  # prior verdict carried over
+    assert sum(len(sec.claims) for sec in report.sections) == 2  # reused + fresh

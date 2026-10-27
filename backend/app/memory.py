@@ -129,6 +129,25 @@ class Memory:
     def feedback_count(self) -> int:
         return self._conn.execute("SELECT COUNT(*) FROM feedback").fetchone()[0]
 
+    def prior_artifacts_for_topic(self, topic_key: str) -> dict | None:
+        """Latest run's sections + verdicts for a topic — the reuse payload for delta runs."""
+        row = self._conn.execute(
+            "SELECT run_uuid, report_json FROM runs WHERE topic_key = ? ORDER BY id DESC LIMIT 1",
+            (topic_key,),
+        ).fetchone()
+        if not row:
+            return None
+        run_uuid, report_json = row
+        report = json.loads(report_json)
+        verdicts = {
+            r[0]: {"verdict": r[1], "reason": r[2], "model": r[3], "web_checked": bool(r[4])}
+            for r in self._conn.execute(
+                "SELECT claim_id, verdict, reason, model, web_checked FROM verdicts WHERE run_uuid = ?",
+                (run_uuid,),
+            ).fetchall()
+        }
+        return {"sections": report.get("sections", []), "verdicts": verdicts}
+
     def trust_multiplier(self, domain: str) -> float:
         if not domain:
             return 1.0

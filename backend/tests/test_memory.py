@@ -79,3 +79,15 @@ def test_last_report_fuzzy_topic(tmp_path):
     out = m.last_report_for_topic("kubernetes or serverless")
     assert out == REPORT
     assert m.last_report_for_topic("completely unrelated topic") is None
+
+
+def test_prior_artifacts_for_topic(tmp_path):
+    m = Memory(str(tmp_path / "t.db"))
+    report = {"sections": [{"sub_question": "What is X?", "narrative": "n",
+                            "claims": [{"id": "c1", "text": "prior claim", "citation_urls": ["https://old.com/1"]}]}]}
+    m.save_run("brief", "engineer", "k", report, run_uuid="r1")
+    m.save_verdicts("r1", [{"claim_id": "c1", "verdict": "supported", "reason": "ok", "model": "m"}])
+    art = m.prior_artifacts_for_topic("k")
+    assert art["sections"][0]["claims"][0]["id"] == "c1"
+    assert art["verdicts"]["c1"]["verdict"] == "supported"
+    assert m.prior_artifacts_for_topic("missing") is None
