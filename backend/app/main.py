@@ -24,6 +24,9 @@ class ProfileIn(BaseModel):
     persona: str = "engineer"
     trusted_sources: list[str] = []
     excluded_sources: list[str] = []
+    role_context: str = ""
+    goals: str = ""
+    expertise_notes: str = ""
 
 
 class ResearchIn(BaseModel):
@@ -52,7 +55,9 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
 
     @app.post("/api/profile")
     async def post_profile(p: ProfileIn):
-        memory.set_profile(p.persona, p.trusted_sources, p.excluded_sources)
+        memory.set_profile(p.persona, p.trusted_sources, p.excluded_sources,
+                           role_context=p.role_context, goals=p.goals,
+                           expertise_notes=p.expertise_notes)
         return memory.get_profile()
 
     app.state.background_tasks = set()

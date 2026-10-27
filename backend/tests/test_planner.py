@@ -41,3 +41,14 @@ async def test_empty_plan_raises():
 
 def test_topic_key_slug():
     assert topic_key("Should we adopt Kubernetes?") == "should-we-adopt-kubernetes"
+
+
+async def test_profile_context_in_prompt():
+    rich = dict(PROFILE, role_context="CTO of a 10-person startup",
+                goals="ship ML API cheaply", expertise_notes="knows Docker, new to k8s")
+    llm = FakeLLM([SCHEMA_OK])
+    await plan("Explain X", "founder", "k", rich, None, llm, "m-planner")
+    flat = str(llm.prompts[0])
+    assert "CTO of a 10-person startup" in flat
+    assert "ship ML API cheaply" in flat
+    assert "knows Docker, new to k8s" in flat

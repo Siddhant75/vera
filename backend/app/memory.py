@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS feedback (
 );
 """
 
-DEFAULT_PROFILE = {"persona": "engineer", "trusted_sources": [], "excluded_sources": []}
+DEFAULT_PROFILE = {"persona": "engineer", "trusted_sources": [], "excluded_sources": [],
+                   "role_context": "", "goals": "", "expertise_notes": ""}
 
 
 class Memory:
@@ -45,10 +46,14 @@ class Memory:
             return dict(DEFAULT_PROFILE)
         return json.loads(row[0])
 
-    def set_profile(self, persona: str, trusted: list[str], excluded: list[str]) -> None:
+    def set_profile(self, persona: str, trusted: list[str], excluded: list[str],
+                    role_context: str = "", goals: str = "", expertise_notes: str = "") -> None:
         self._conn.execute(
             "INSERT OR REPLACE INTO profile (key, value) VALUES ('profile', ?)",
-            (json.dumps({"persona": persona, "trusted_sources": trusted, "excluded_sources": excluded}),),
+            (json.dumps({
+                "persona": persona, "trusted_sources": trusted, "excluded_sources": excluded,
+                "role_context": role_context, "goals": goals, "expertise_notes": expertise_notes,
+            }),),
         )
         self._conn.commit()
 

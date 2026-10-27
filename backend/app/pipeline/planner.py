@@ -34,9 +34,16 @@ async def plan(brief: str, persona: str, topic_key_in: str, profile: dict,
             f"\n\nThe user researched this topic before. Previous open questions:\n{open_qs}\n"
             "Focus the sub-questions on changes, updates and resolving those open questions."
         )
+    ctx = "\n".join(filter(None, [
+        f"Role: {profile.get('role_context', '')}",
+        f"Current goals: {profile.get('goals', '')}",
+        f"Expertise: {profile.get('expertise_notes', '')}",
+    ]))
     system = (
-        f"You are a research planner. The user is a {persona}. Phrase sub-questions for "
-        f"their expertise level and what they care about. Return JSON matching the schema."
+        f"You are a research planner. The user is a {persona}."
+        + (f"\nAbout the user:\n{ctx}" if ctx else "")
+        + "\nPhrase sub-questions for their expertise level and what they care about. "
+          "Return JSON matching the schema."
     )
     user = f"Research brief: {brief}{prior_note}"
     data = await llm.chat_json(model, [

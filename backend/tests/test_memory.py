@@ -5,13 +5,16 @@ REPORT = {"brief": "b", "persona": "engineer", "topic_key": "k", "sections": []}
 
 def test_default_profile(tmp_path):
     m = Memory(str(tmp_path / "t.db"))
-    assert m.get_profile() == {"persona": "engineer", "trusted_sources": [], "excluded_sources": []}
+    assert m.get_profile() == {"persona": "engineer", "trusted_sources": [], "excluded_sources": [],
+                            "role_context": "", "goals": "", "expertise_notes": ""}
 
 
 def test_profile_round_trip(tmp_path):
     m = Memory(str(tmp_path / "t.db"))
     m.set_profile("founder", ["a.com"], ["b.com"])
-    assert m.get_profile() == {"persona": "founder", "trusted_sources": ["a.com"], "excluded_sources": ["b.com"]}
+    p = m.get_profile()
+    assert (p["persona"], p["trusted_sources"], p["excluded_sources"]) == ("founder", ["a.com"], ["b.com"])
+    assert p["role_context"] == ""
 
 
 def test_save_run_and_last_report(tmp_path):
@@ -49,3 +52,14 @@ def test_add_feedback_saves_row(tmp_path):
     m.save_verdicts("r1", [{"claim_id": "c1", "verdict": "supported", "reason": "r", "model": "m"}])
     m.add_feedback("r1", "c1", False)
     assert m.feedback_count() == 1
+
+
+def test_profile_extended_fields(tmp_path):
+    m = Memory(str(tmp_path / "t.db"))
+    m.set_profile("founder", ["a.com"], ["b.com"],
+                  role_context="CTO of a 10-person startup", goals="ship ML API cheaply",
+                  expertise_notes="knows Docker, new to k8s")
+    p = m.get_profile()
+    assert p["role_context"] == "CTO of a 10-person startup"
+    assert p["goals"] == "ship ML API cheaply"
+    assert p["expertise_notes"] == "knows Docker, new to k8s"
