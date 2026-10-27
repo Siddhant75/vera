@@ -14,11 +14,13 @@ Hard submission constraints (verified from the Devpost rules — never violate):
 
 ## Status & Plan
 
-As of 2026-10-27 the build is complete and real-API verified: 62/62 backend tests green, frontend builds, full pipeline run succeeded live (84 claims verified, 253 Token Factory calls, 21 Tavily queries in one run). Models pinned in `.env`: planner `nvidia/nemotron-3-super-120b-a12b`, verifiers `deepseek-ai/DeepSeek-V4-Pro` + `Qwen/Qwen3-235B-A22B-Instruct-2507`. The build plan (TDD tasks, interfaces) lives at `docs/superpowers/plans/2026-10-27-vera.md`.
+As of 2026-10-28 the build + claim-integrity + budget-enforcement passes are complete: 93/93 backend tests green, frontend builds. Live-verified per-run numbers (bullet brief): 16/20 search budget, 120K tokens (−71% vs unbounded), 10 claims, 211 report words, 12 unused sources surfaced, coverage gate honored all 4 bullets. Models pinned in `.env`: planner `nvidia/nemotron-3-super-120b-a12b`, verifiers `deepseek-ai/DeepSeek-V4-Pro` + `Qwen/Qwen3-235B-A22B-Instruct-2507`.
+
+Key docs: **`docs/DECISIONS.md`** — every design decision + build ruling with rationale (read before changing planner/verifier/budget logic). Build plan (TDD tasks, interfaces): `docs/superpowers/plans/2026-10-27-vera.md`.
 
 Known machine quirk: Avast TLS interception breaks Python `ssl` — `truststore.inject_into_ssl()` shim in `app/main.py` handles it; don't remove.
 
-Remaining: host demo URL, record <3min YouTube video, devpost submission (deadline Oct 30, 10:00am PDT).
+Remaining: host demo URL (set `DAILY_TOKEN_BUDGET` first), record <3min YouTube video, devpost submission (deadline Oct 30, 10:00am PDT).
 
 Design decisions locked (do not relitigate): Personal AI track; differentiation = user context model + research memory with delta mode + per-source trust (all existing open-source deep-research repos are stateless); moat = adversarial cross-model claim verification (impossible with a single model — the sponsor constraint is the product).
 
@@ -54,7 +56,8 @@ brief ─► [1 Planner] ─► [2 Searcher] ─► [3 Drafter] ─► [4 Verifi
 - **Backend** `backend/app/`: FastAPI; `pipeline/` holds one async function per stage. Every stage takes its clients (`TokenFactoryClient`, `TavilyClient`) as injectable parameters — tests use fakes from `tests/conftest.py`, never real API calls.
 - **Verifier** is the core: each claim is cross-examined by every verifier model; if not all agree "supported", Tavily re-searches and models re-check with `web_checked=True`. Resolution: all supported → supported; any contradicted → contradicted; mixed → disputed.
 - **Memory** (`memory.py`, SQLite `vera.db`): user profile (persona, trusted/excluded source domains), runs, verdicts, feedback, topic reports. Delta mode = planner receives the prior report for the same `topic_key` and focuses on what changed.
-- **Events/telemetry**: each run emits SSE stage events (`planning|searching|drafting|verifying|synthesizing|done|error`); process-wide counters (`tf_calls`, `tf_tokens`, `tavily_queries`, `claims_verified`) surface in a `/api/telemetry` endpoint and a frontend panel. Sponsor telemetry visibility is a deliberate scoring strategy — keep it prominent.
+- **Budget enforcement (deterministic, code-owned)**: `app/budget.py` `SearchBudget` caps Tavily searches per run (`min(12 + 2×requirements, 40)`; prose → 20), consumed in priority order searcher → prosecutor → re-checks; exhaustion degrades visibly ("budget-limited"), never crashes. `app/brief.py` `parse_requirements` extracts bullets/numbered items by regex; the orchestrator's coverage gate retries the planner on missed requirements and renders a "Not investigated" report section if still uncovered. Evidence fed to models is capped (top-8 sources × 800 chars); report prose capped (≤120 words/section, ≤8 open questions/changes). Fetched-but-uncited sources surface as the report's clickable "unused sources" section.
+- **Events/telemetry**: each run emits SSE stage events (`planning|searching|drafting|verifying|synthesizing|done|error`); process-wide counters (`tf_calls`, `tf_tokens`, `tavily_queries`, `claims_verified`) surface in a `/api/telemetry` endpoint and a frontend panel; the `done` event carries a per-run `run_summary` (searches used/budget, tokens, claims, reused). Sponsor telemetry visibility is a deliberate scoring strategy — keep it prominent.
 - **Frontend** `frontend/`: Vite React, consumes SSE via EventSource. Sample brief pre-filled for 1-click judge demo.
 
 ## Environment
