@@ -1,0 +1,8 @@
+.venv/
+.env
+vera.db
+node_modules/
+__pycache__/
+dist/
+.superpowers/
+.pytest_cache/
