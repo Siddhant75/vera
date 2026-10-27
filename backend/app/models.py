@@ -49,4 +49,5 @@ class ResearchReport(BaseModel):
     sections: list[ReportSection]
     open_questions: list[str] = Field(default_factory=list)
     verdict_summary: dict[str, int] = Field(default_factory=dict)
+    claim_verdicts: dict[str, str] = Field(default_factory=dict)  # claim_id → final verdict
     changes: list[str] = Field(default_factory=list)  # delta mode: vs prior report

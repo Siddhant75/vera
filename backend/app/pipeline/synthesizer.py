@@ -70,11 +70,13 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
         open_questions.extend(data.get("open_questions", []))
 
     summary: dict[str, int] = {}
+    claim_verdicts: dict[str, str] = {}
     for v in verdicts:
         summary[v.verdict] = summary.get(v.verdict, 0) + 1
+        claim_verdicts[v.claim_id] = v.verdict
 
     return ResearchReport(
         brief=brief, persona=persona, topic_key=topic_key_in,
         sections=sections, open_questions=open_questions,
-        verdict_summary=summary, changes=changes,
+        verdict_summary=summary, claim_verdicts=claim_verdicts, changes=changes,
     )

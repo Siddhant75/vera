@@ -44,4 +44,5 @@ def test_report_defaults_and_round_trip():
         verdict_summary={"supported": 2, "disputed": 1},
     )
     assert r.changes == []
+    assert r.claim_verdicts == {}
     assert ResearchReport(**r.model_dump()) == r

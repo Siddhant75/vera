@@ -33,6 +33,7 @@ async def test_report_structure_and_verdict_summary():
     report = await synthesize("b", "founder", "k", PLAN, [CLAIM], VERDICTS, [SOURCE], None, llm, "m-syn")
     assert len(report.sections) == 2
     assert report.verdict_summary == {"disputed": 1}
+    assert report.claim_verdicts == {"c1": "disputed"}
     assert report.sections[0].claims == [CLAIM]
     assert "follow up" in report.open_questions
 
