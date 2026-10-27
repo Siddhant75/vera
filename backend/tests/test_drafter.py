@@ -55,3 +55,11 @@ async def test_long_source_content_trimmed():
     await draft_claims("b", PLAN, sources, profile(), llm, "m-draft")
     assert huge not in str(llm.prompts[0])
     assert "x" * 1201 not in str(llm.prompts[0])  # each source capped ~1200 chars
+
+
+async def test_claims_capped_per_subquestion():
+    many = {"claims": [{"text": f"claim {i}", "citation_urls": ["https://a.com/1"]} for i in range(12)]}
+    llm = FakeLLM([many])
+    out = await draft_claims("b", PLAN, SOURCES, profile(), llm, "m-draft")
+    assert len(out) == 5  # load-bearing claims only
+    assert "at most 5" in str(llm.prompts[0])

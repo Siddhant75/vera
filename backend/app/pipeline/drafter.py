@@ -39,12 +39,13 @@ async def draft_claims(brief: str, plan: ResearchPlan, sources: list[Source],
         data = await llm.chat_json(model, [
             {"role": "system", "content": (
                 f"You are a research drafter writing for a {profile.get('persona', 'engineer')}. "
-                "Extract atomic factual claims from ONLY the provided sources. Every claim must "
-                "cite the exact source URLs that support it."
+                "Extract the LOAD-BEARING factual claims from ONLY the provided sources — at most 5 "
+                "per sub-question, the ones that actually move the decision. Skip trivia. Every claim "
+                "must cite the exact source URLs that support it."
             )},
             {"role": "user", "content": f"Brief: {brief}\nSub-question: {sq.text}\n\nSources:\n{evidence}"},
         ], DRAFT_SCHEMA)
-        for item in data.get("claims", []):
+        for item in data.get("claims", [])[:5]:
             cited = [u for u in item.get("citation_urls", []) if u in allowed]
             if not cited:
                 continue
