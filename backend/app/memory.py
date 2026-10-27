@@ -81,11 +81,29 @@ class Memory:
         return json.loads(row[0]) if row else None
 
     def last_report_for_topic(self, topic_key: str) -> dict | None:
-        row = self._conn.execute(
+        exact = self._conn.execute(
             "SELECT report_json FROM runs WHERE topic_key = ? ORDER BY id DESC LIMIT 1",
             (topic_key,),
         ).fetchone()
-        return self._report_row(row)
+        if exact:
+            return self._report_row(exact)
+        # fuzzy: same research phrased differently still hits memory (delta across wordings)
+        from difflib import SequenceMatcher
+        keys = [r[0] for r in self._conn.execute("SELECT DISTINCT topic_key FROM runs").fetchall()]
+        tokens = set(topic_key.replace("-", " ").split())
+        best, best_score = None, 0.0
+        for k in keys:
+            score = max(SequenceMatcher(None, topic_key, k).ratio(),
+                        len(tokens & set(k.replace("-", " ").split())) / max(len(tokens), 1))
+            if score > best_score:
+                best, best_score = k, score
+        if best_score >= 0.75 and best:
+            row = self._conn.execute(
+                "SELECT report_json FROM runs WHERE topic_key = ? ORDER BY id DESC LIMIT 1",
+                (best,),
+            ).fetchone()
+            return self._report_row(row)
+        return None
 
     def get_report(self, run_uuid: str) -> dict | None:
         row = self._conn.execute(

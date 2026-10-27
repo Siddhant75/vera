@@ -71,3 +71,11 @@ def test_negative_feedback_texts_retrievable(tmp_path):
     m.add_feedback("r1", "c1", False, claim_text="K8s is always cheaper")
     m.add_feedback("r1", "c2", True, claim_text="serverless is best")
     assert m.negative_claim_texts() == ["K8s is always cheaper"]
+
+
+def test_last_report_fuzzy_topic(tmp_path):
+    m = Memory(str(tmp_path / "t.db"))
+    m.save_run("brief1", "engineer", "kubernetes-vs-serverless", REPORT, run_uuid="r1")
+    out = m.last_report_for_topic("kubernetes or serverless")
+    assert out == REPORT
+    assert m.last_report_for_topic("completely unrelated topic") is None
