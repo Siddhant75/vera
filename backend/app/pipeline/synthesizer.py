@@ -20,7 +20,7 @@ CHANGES_SCHEMA = {
 async def synthesize(brief: str, persona: str, topic_key_in: str, plan: ResearchPlan,
                      claims: list[Claim], verdicts: list[Verdict], sources: list[Source],
                      prior_report: dict | None, llm: TokenFactoryClient,
-                     model: str) -> ResearchReport:
+                     model: str, uncovered: list[str] | None = None) -> ResearchReport:
     verdict_by_claim = {v.claim_id: v for v in verdicts}
     claims_by_q: dict[str, list[Claim]] = {}
     for c in claims:
@@ -68,6 +68,15 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
         ], SECTION_SCHEMA)
         sections.append(ReportSection(sub_question=sq.text, narrative=data["narrative"], claims=q_claims))
         open_questions.extend(data.get("open_questions", []))
+
+    if uncovered:
+        sections.append(ReportSection(
+            sub_question="Not investigated",
+            narrative="These explicitly requested items could not be covered by the research and "
+                      "are flagged instead of silently dropped: "
+                      + "; ".join(uncovered),
+            claims=[],
+        ))
 
     summary: dict[str, int] = {}
     claim_verdicts: dict[str, str] = {}

@@ -122,3 +122,23 @@ async def test_delta_reuses_prior_subquestions(tmp_path):
     assert len(reused) == 1 and reused[0].text == "prior claim"
     assert report.claim_proofs["r-c1"]["verdict"] == "supported"  # prior verdict carried over
     assert sum(len(sec.claims) for sec in report.sections) == 2  # reused + fresh
+
+
+async def test_coverage_gate_retries_then_flags(tmp_path):
+    from app.brief import parse_requirements
+    requirements = parse_requirements("Compare k8s and serverless.\n- cold start behavior")
+    assert requirements == ["cold start behavior"]
+    # planner never covers the requirement → gate retries once, then flags
+    llm = make_llm([PLAN, PLAN, DRAFT, VERDICT_SUP, VERDICT_SUP, NARR])
+    memory = Memory(str(tmp_path / "t.db"))
+    events = []
+
+    async def emit(e):
+        events.append(e)
+
+    report = await run_research("r-cov", "Compare k8s and serverless.\n- cold start behavior",
+                                "engineer", "", False, llm, make_tavily(), memory, emit)
+    retry_prompt = str(llm.prompts[1])
+    assert "cold start behavior" in retry_prompt  # missed requirement injected on retry
+    sections_text = " ".join(s.sub_question for s in report.sections)
+    assert "Not investigated" in sections_text or "not investigated" in sections_text.lower()

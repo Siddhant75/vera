@@ -12,6 +12,7 @@ class ResearchPlan(BaseModel):
     persona: str
     topic_key: str
     sub_questions: list[SubQuestion]
+    coverage: list[dict] = Field(default_factory=list)  # {requirement, sq_ids}
 
 
 class Source(BaseModel):

@@ -26,7 +26,26 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
     try:
         await emit({"run_id": run_id, "stage": "planning", "payload": {"brief": brief}})
         prior_art = memory.prior_artifacts_for_topic(tk) if (delta and prior) else None
+        from app.brief import parse_requirements
+        requirements = parse_requirements(brief)
         p = await plan(brief, active_persona, tk, profile, prior, llm, llm.planner_model)
+
+        # Deterministic coverage gate: every parsed bullet must map to a sub-question.
+        # LLM cannot skip this — code owns the check.
+        def uncovered_reqs(p):
+            covered = {c["requirement"].lower(): c["sq_ids"] for c in p.coverage}
+            flat = " ".join(sq.text.lower() for sq in p.sub_questions)
+            return [r for r in requirements
+                    if not (covered.get(r.lower()) or any(w in flat for w in r.lower().split()[:4]))]
+
+        uncovered = uncovered_reqs(p)
+        if uncovered:
+            stage["current"] = "planning"
+            p = await plan(brief, active_persona, tk, profile, prior, llm, llm.planner_model,
+                           missed_requirements=uncovered)
+            uncovered = uncovered_reqs(p)
+        if len(p.sub_questions) > 8:
+            p = p.model_copy(update={"sub_questions": p.sub_questions[:8]})
 
         # True delta: sub-questions marked reused skip search+draft+verify; prior claims + verdicts carried
         reused_sections: dict[str, dict] = {}
@@ -76,7 +95,8 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
         stage["current"] = "synthesizing"
         await emit({"run_id": run_id, "stage": "synthesizing", "payload": {}})
         report = await synthesize(brief, active_persona, tk, p, claims, verdicts,
-                                  sources, prior, llm, llm.planner_model)
+                                  sources, prior, llm, llm.planner_model,
+                                  uncovered=uncovered)
 
         memory.save_run(brief, active_persona, tk, report.model_dump(), run_uuid=run_id)
         memory.save_verdicts(run_id, [v.model_dump() for v in verdicts])

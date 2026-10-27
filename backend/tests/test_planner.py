@@ -52,3 +52,11 @@ async def test_profile_context_in_prompt():
     assert "CTO of a 10-person startup" in flat
     assert "ship ML API cheaply" in flat
     assert "knows Docker, new to k8s" in flat
+
+
+async def test_coverage_field_round_trip():
+    llm = FakeLLM([{"sub_questions": SCHEMA_OK["sub_questions"],
+                    "coverage": [{"requirement": "cost analysis", "sq_ids": ["q1"]}]}])
+    p = await plan("Compare.\n- cost analysis", "founder", "k", PROFILE, None, llm, "m-planner")
+    assert p.coverage == [{"requirement": "cost analysis", "sq_ids": ["q1"]}]
+    assert "cost analysis" in str(llm.prompts[0])  # checklist in prompt

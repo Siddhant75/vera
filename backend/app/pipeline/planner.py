@@ -17,7 +17,18 @@ PLAN_SCHEMA = {
                 },
                 "required": ["id", "text"],
             },
-        }
+        },
+        "coverage": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "requirement": {"type": "string"},
+                    "sq_ids": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["requirement", "sq_ids"],
+            },
+        },
     },
     "required": ["sub_questions"],
 }
@@ -30,7 +41,8 @@ def topic_key(topic_or_brief: str) -> str:
 
 
 async def plan(brief: str, persona: str, topic_key_in: str, profile: dict,
-               prior_report: dict | None, llm: TokenFactoryClient, model: str) -> ResearchPlan:
+               prior_report: dict | None, llm: TokenFactoryClient, model: str,
+               missed_requirements: list[str] | None = None) -> ResearchPlan:
     prior_note = ""
     if prior_report:
         open_qs = "\n".join(f"- {q}" for q in prior_report.get("open_questions", []))
@@ -53,9 +65,15 @@ async def plan(brief: str, persona: str, topic_key_in: str, profile: dict,
         f"You are a research planner. The user is a {persona}."
         + (f"\nAbout the user:\n{ctx}" if ctx else "")
         + "\nPhrase sub-questions for their expertise level and what they care about. "
-          "Return JSON matching the schema."
+          "At most 8 sub-questions. If the brief lists explicit bullet requirements, map every one "
+          "to sub-questions via the coverage field. Return JSON matching the schema."
     )
-    user = f"Research brief: {brief}{prior_note}"
+    missed_note = ""
+    if missed_requirements:
+        missed_note = "\n\nMANDATORY: these explicitly requested items are NOT yet covered. " \
+            "You MUST produce sub-questions answering each one:\n" + \
+            "\n".join(f"- {r}" for r in missed_requirements)
+    user = f"Research brief: {brief}{prior_note}{missed_note}"
     data = await llm.chat_json(model, [
         {"role": "system", "content": system},
         {"role": "user", "content": user},
@@ -65,4 +83,8 @@ async def plan(brief: str, persona: str, topic_key_in: str, profile: dict,
             if item.get("text")]
     if not subs:
         raise ValueError("planner returned no sub-questions")
-    return ResearchPlan(brief=brief, persona=persona, topic_key=topic_key_in, sub_questions=subs)
+    if missed_requirements is not None:
+        subs = subs[:8]
+    coverage = [c for c in data.get("coverage", []) if c.get("requirement")]
+    return ResearchPlan(brief=brief, persona=persona, topic_key=topic_key_in,
+                        sub_questions=subs, coverage=coverage)
