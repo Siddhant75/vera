@@ -31,8 +31,8 @@ cd frontend && npm install && npm run dev
 1. **Plan** — Nemotron decomposes your brief into sub-questions phrased for your persona (engineer/founder/analyst), or for *what changed* if you researched this topic before.
 2. **Search** — live Tavily web search per sub-question, weighted by your trusted sources.
 3. **Draft** — atomic claims extracted from fetched sources; every claim must cite a real fetched URL; uncited claims are dropped, not guessed.
-4. **Verify** — every claim is cross-examined by 2+ independent models. Disagreement triggers a live Tavily re-check with the web evidence, then models re-vote → supported / contradicted / disputed.
-5. **Synthesize** — persona-voiced report with verdict badges, open questions written back to research memory, and a delta summary when you've been here before.
+4. **Verify** — a prosecutor pass hunts counter-evidence for every claim (live Tavily refutation search), then 2+ independent models vote on claim + refutation evidence. Disagreement triggers a second web re-check → supported / contradicted / disputed, with the reason one click away.
+5. **Synthesize** — persona-voiced report with verdict badges and open questions written back to research memory. Run a delta on the same topic and truly-reused sub-questions skip search/draft/verify entirely — the report shows what changed.
 
 ## 🏆 How Nebius Token Factory + NVIDIA Open Models Power This
 
