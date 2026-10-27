@@ -3,7 +3,7 @@ import uuid
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 try:
@@ -39,7 +39,8 @@ class FeedbackIn(BaseModel):
     helpful: bool = True
 
 
-def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory) -> FastAPI:
+def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
+               daily_token_budget: int = 0) -> FastAPI:
     app = FastAPI(title="Vera")
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
@@ -58,6 +59,10 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory) ->
 
     @app.post("/api/research")
     async def post_research(r: ResearchIn):
+        from app.telemetry import telemetry
+        if daily_token_budget and telemetry.snapshot()["tf_tokens"] >= daily_token_budget:
+            return JSONResponse(status_code=429, content={
+                "error": f"daily token budget exhausted ({daily_token_budget}); come back tomorrow"})
         run_id = uuid.uuid4().hex[:12]
 
         async def emit(event: dict):
@@ -108,7 +113,7 @@ def build_app() -> FastAPI:
     )
     tavily = TavilyClient(settings.tavily_api_key)
     memory = Memory(settings.db_path)
-    return create_app(llm, tavily, memory)
+    return create_app(llm, tavily, memory, daily_token_budget=settings.daily_token_budget)
 
 
 try:

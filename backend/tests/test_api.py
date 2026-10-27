@@ -95,3 +95,16 @@ async def test_error_run_reports_failed_stage(tmp_path):
         events = parse_sse((await c.get(f"/api/runs/{run_id}/events")).text)
         err = [e for e in events if e["stage"] == "error"][0]
         assert err["payload"]["failed_stage"] == "drafting"
+
+
+async def test_budget_guard_429(tmp_path, monkeypatch):
+    llm = FakeLLM([PLAN, DRAFT, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    memory = Memory(str(tmp_path / "t.db"))
+    from app.main import create_app as ca
+    app = ca(llm=llm, tavily=FakeTavily(SOURCES), memory=memory, daily_token_budget=1000)
+    from app.telemetry import telemetry
+    telemetry.add(tf_tokens=5000)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        r = await c.post("/api/research", json={"brief": "Explain X"})
+        assert r.status_code == 429
+        assert "budget" in r.json()["error"].lower()

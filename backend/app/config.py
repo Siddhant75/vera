@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     planner_model: str = ""
     verifier_models: Annotated[list[str], NoDecode] = []
     db_path: str = "vera.db"
+    daily_token_budget: int = 0  # 0 = unlimited; guards credits on hosted demos
 
     @field_validator("verifier_models", mode="before")
     @classmethod
