@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 
@@ -10,7 +11,12 @@ class SafeDict(dict):
 
 def fill_template(template: str, user_vars: dict, auto_vars: dict) -> str:
     merged = {**auto_vars, **user_vars}  # user vars override autos
-    return template.format_map(SafeDict(**merged))
+    try:
+        return template.format_map(SafeDict(**merged))
+    except (ValueError, IndexError):  # braces without valid fields ({}, {0}, lone {) — regex path
+        return re.sub(r"\{(\w+)\}",
+                      lambda m: str(merged.get(m.group(1), "{" + m.group(1) + "}")),
+                      template)
 
 
 def auto_vars(topic: str) -> dict:

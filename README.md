@@ -62,7 +62,7 @@ brief → Planner → Searcher → Drafter → Verifier → Synthesizer → repo
 
 Vera stores everything locally (SQLite, no accounts, no sync). Private notes attach to topics and inform planning/drafting. Two hard rules, enforced in code — not by prompt:
 
-- **Notes never reach Tavily.** Every search query is checked for 4-gram overlap with your notes before dispatch; a leaking query is replaced by the topic slug. (Planner models are told the same, but the code gate is the guarantee.)
+- **Verbatim note text never reaches Tavily.** Every search query is checked before dispatch: 4-gram overlap with your notes, or (for short queries) any distinctive-token overlap, replaces the query with the topic slug. Deterministic code gate; paraphrases of note ideas may still evade it — that is why the never-paste list matters.
 - **Secrets are warned at save-time, never silently accepted or blocked** — Vera scans for API-key/password/private-key/card-number patterns and tells you loudly.
 
 **Never paste into notes:** passwords, API keys, account numbers, medical records — anything you wouldn't tell a cloud service. Notes live on your machine, but their context is processed by Nebius Token Factory during research. Purge everything anytime from the app ("What Vera remembers" → delete).

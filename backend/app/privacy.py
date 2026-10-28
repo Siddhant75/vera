@@ -23,13 +23,21 @@ def _grams(text: str, n: int = 4) -> set[tuple[str, ...]]:
 
 
 def safe_query(query: str, notes: list[str], fallback: str) -> str:
-    """Deterministic privacy gate: a query sharing any word-4-gram with private note
-    content is blocked (returns fallback) — note text can never reach Tavily."""
+    """Deterministic privacy gate. Two rules:
+    - any query: word-4-gram overlap with note content -> blocked
+    - short queries (<4 words) have empty 4-gram sets, so ANY distinctive token
+      (>=4 chars) shared with a note blocks them too — short echoes can't slip through.
+    Guarantees verbatim note text never reaches Tavily; paraphrases may evade it."""
     if not notes:
         return query
     note_grams = set()
+    note_words = set()
     for note in notes:
         note_grams |= _grams(note)
+        note_words |= {w for w in re.sub(r"[^\w\s]", " ", note.lower()).split() if len(w) >= 4}
     if _grams(query) & note_grams:
+        return fallback
+    q_words = re.sub(r"[^\w\s]", " ", query.lower()).split()
+    if len(q_words) < 4 and any(w in note_words for w in q_words if len(w) >= 4):
         return fallback
     return query

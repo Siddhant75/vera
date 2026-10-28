@@ -27,3 +27,16 @@ def test_safe_query_passes_unrelated():
 
 def test_safe_query_empty_notes_passthrough():
     assert safe_query("anything at all", [], fallback="fb") == "anything at all"
+
+
+def test_short_query_token_overlap_blocked():
+    # <4-word queries evade 4-gram matching — short distinct tokens must block too
+    notes = ["our internal SLA is 45 minutes for the p99 inference latency budget"]
+    assert safe_query("SLA 45 minutes", notes, fallback="fb") == "fb"
+
+
+def test_fill_template_brace_bearing_text_never_crashes():
+    from app.skills import fill_template
+    for tpl in ("{0}", "lone {", "lone }", "json example {'a': 1}", "{}"):
+        out = fill_template(tpl, {}, {"date": "2026-10-29", "quarter": "Q4-2026"})
+        assert isinstance(out, str)

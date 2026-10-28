@@ -68,3 +68,46 @@ async def test_skill_run_missing_skill_404(tmp_path):
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
         r = await c.post("/api/skills/ghost/run", json={})
         assert r.status_code == 404
+
+
+async def test_skill_run_preserves_profile_context(tmp_path):
+    m = _memory(tmp_path)
+    m.set_profile("founder", [], [], role_context="CTO of 10-person startup",
+                  goals="ship ML API", expertise_notes="knows Docker")
+    m.upsert_skill("s", "analyst", "brief text", "topic t")
+    llm = FakeLLM([PLAN, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    app = create_app(llm=llm, tavily=FakeTavily({"brief text": [
+        {"url": "https://a.com/1", "title": "A", "content": "c"}]}), memory=m)
+    import httpx
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        await c.post("/api/skills/s/run", json={})
+        p = m.get_profile()
+        assert p["role_context"] == "CTO of 10-person startup"  # context survives skill run
+        assert p["persona"] == "analyst"  # persona updated
+
+
+async def test_skill_run_budget_429_not_500(tmp_path):
+    m = _memory(tmp_path)
+    m.upsert_skill("s", "founder", "brief", "t")
+    from app import telemetry
+    telemetry.telemetry.add(tf_tokens=10_000_000)
+    app = create_app(llm=FakeLLM(), tavily=FakeTavily(), memory=m, daily_token_budget=1000)
+    import httpx
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        r = await c.post("/api/skills/s/run", json={})
+        assert r.status_code == 429  # was 500: dict(JSONResponse) crashed
+
+
+async def test_drafter_receives_notes(tmp_path):
+    m = _memory(tmp_path)
+    m.add_note("explain-x", "SECRET internal SLA is 45 minutes for the p99 inference latency budget")
+    llm = FakeLLM([PLAN, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    from app.pipeline.orchestrator import run_research
+
+    async def noop(e):
+        pass
+
+    await run_research("n2", "Explain X", "engineer", "", False, llm,
+                       FakeTavily({"What is X?": [{"url": "https://a.com/1", "title": "A", "content": "c"}]}),
+                       memory=m, emit=noop)
+    assert "SECRET" in str(llm.prompts[1])  # drafter prompt carries notes too

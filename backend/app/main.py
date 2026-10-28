@@ -227,11 +227,16 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         from app.skills import auto_vars, fill_template
         filled_brief = fill_template(skill["brief_template"], s.vars, auto_vars(skill["topic"]))
         filled_topic = skill["topic"] or s.vars.get("topic", "")
-        memory.set_profile(skill["persona"], skill["trusted_sources"], skill["excluded_sources"])
+        prev = memory.get_profile()
+        memory.set_profile(skill["persona"], skill["trusted_sources"], skill["excluded_sources"],
+                           role_context=prev.get("role_context", ""), goals=prev.get("goals", ""),
+                           expertise_notes=prev.get("expertise_notes", ""))
         run_resp = await post_research(ResearchIn(brief=filled_brief, topic=filled_topic,
                                                   persona=skill["persona"]))
+        if isinstance(run_resp, JSONResponse):
+            return run_resp  # budget guard 429 etc — pass through untouched
         resp = dict(run_resp)
-        if s.watch and not isinstance(run_resp, JSONResponse):
+        if s.watch:
             wid = memory.add_watch(filled_topic or filled_brief[:40], filled_brief,
                                    skill["persona"], s.interval_hours)
             resp["watch_id"] = wid

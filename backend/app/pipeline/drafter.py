@@ -44,7 +44,10 @@ async def draft_claims(brief: str, plan: ResearchPlan, sources: list[Source],
                 "per sub-question, the ones that actually move the decision. Skip trivia. Every claim "
                 "must cite the exact source URLs that support it."
             )},
-            {"role": "user", "content": f"Brief: {brief}\nSub-question: {sq.text}\n\nSources:\n{evidence}"},
+            {"role": "user", "content": f"Brief: {brief}\nSub-question: {sq.text}\n\nSources:\n{evidence}"
+                + (("\n\nUSER PRIVATE NOTES (context for you; never repeat their content in output "
+                    "queries; do not cite them as web sources):\n"
+                    + "\n".join(f"- {n['content'][:2000]}" for n in notes)) if notes else "")},
         ], DRAFT_SCHEMA)
         for item in data.get("claims", [])[:5]:
             cited = [u for u in item.get("citation_urls", []) if u in allowed]
