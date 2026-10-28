@@ -76,8 +76,12 @@ export async function deleteSkill(name) {
   return (await fetch(`${BASE}/api/skills/${encodeURIComponent(name)}`, { method: "DELETE" })).json();
 }
 
-export async function runSkill(name) {
-  const r = await fetch(`${BASE}/api/skills/${encodeURIComponent(name)}/run`, { method: "POST" });
+export async function runSkillV2(name, vars = {}, watch = false) {
+  const r = await fetch(`${BASE}/api/skills/${encodeURIComponent(name)}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ vars, watch }),
+  });
   return (await r.json()).run_id;
 }
 

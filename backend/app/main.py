@@ -213,14 +213,29 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         memory.delete_skill(name)
         return {"ok": True}
 
+    class SkillRunIn(BaseModel):
+        vars: dict[str, str] = {}
+        watch: bool = False
+        interval_hours: int = 6
+
     @app.post("/api/skills/{name}/run")
-    async def run_skill(name: str):
-        skill = next((s for s in memory.list_skills() if s["name"] == name), None)
+    async def run_skill(name: str, s: SkillRunIn | None = None):
+        skill = next((sk for sk in memory.list_skills() if sk["name"] == name), None)
         if not skill:
             return JSONResponse(status_code=404, content={"error": "skill not found"})
+        s = s or SkillRunIn()
+        from app.skills import auto_vars, fill_template
+        filled_brief = fill_template(skill["brief_template"], s.vars, auto_vars(skill["topic"]))
+        filled_topic = skill["topic"] or s.vars.get("topic", "")
         memory.set_profile(skill["persona"], skill["trusted_sources"], skill["excluded_sources"])
-        r = ResearchIn(brief=skill["brief_template"], topic=skill["topic"], persona=skill["persona"])
-        return await post_research(r)
+        run_resp = await post_research(ResearchIn(brief=filled_brief, topic=filled_topic,
+                                                  persona=skill["persona"]))
+        resp = dict(run_resp)
+        if s.watch and not isinstance(run_resp, JSONResponse):
+            wid = memory.add_watch(filled_topic or filled_brief[:40], filled_brief,
+                                   skill["persona"], s.interval_hours)
+            resp["watch_id"] = wid
+        return resp
 
     return app
 

@@ -43,6 +43,8 @@ Key decisions, their reasoning, and the trade-offs accepted. Newest last.
 - **Webhook digest delivered after `changed` watch runs** — payload = topic + ≤8 changes + verdict summary; delivery failure logged, watch status unaffected (digest is a bonus, never a blocker).
 - **Purge-all wipes everything** (runs, verdicts, sources, feedback, watches, notes, skills — including profile): "delete my data" must mean all of it. Watcher loop tolerates the empty state. UI: runs list with per-run delete + type-DELETE-to-confirm purge.
 
+- **Skills v2 template filling uses SafeDict** — unknown `{var}` stays literal, never blocks a run; `{topic}`, `{date}`, `{quarter}` auto-injected; user vars override autos. `Run + Watch` composes skill invocation with the watcher (one-click ongoing research).
+
 ## Planned next (approved 2026-10-28, not yet built)
 
 - **Task 24 — Topic Watch (the track's "always-on")**: watched-topics table + in-app scheduler; due topic → automatic delta run → changes digest. Watcher failure = logged + retried next cycle (last missing fallback). Token cost ≈ $0.10-0.30/topic/day, inside DAILY_TOKEN_BUDGET.

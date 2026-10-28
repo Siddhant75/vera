@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getReport, openEventStream, runResearch, runSkill } from "./api";
+import { getReport, openEventStream, runResearch, runSkillV2 } from "./api";
 import PersonaToggle from "./components/PersonaToggle";
 import PipelineView from "./components/PipelineView";
 import ReportView from "./components/ReportView";
@@ -21,13 +21,13 @@ export default function App() {
   const [runSummary, setRunSummary] = useState(null);
   const [running, setRunning] = useState(false);
 
-  const runByName = async (skillName, delta) => {
+  const runByName = async (skillName, vars = {}, watch = false) => {
     setEvents([]);
     setReport(null);
     setRunSummary(null);
     setRunning(true);
     try {
-      const runId = await runSkill(skillName);
+      const runId = await runSkillV2(skillName, vars, watch);
       openEventStream(runId, (e) => {
         setEvents((prev) => [...prev, e]);
         if (e.stage === "done") {
