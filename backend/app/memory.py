@@ -21,6 +21,25 @@ CREATE TABLE IF NOT EXISTS verdicts (
     model TEXT NOT NULL,
     web_checked INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS watches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic TEXT NOT NULL,
+    brief TEXT NOT NULL,
+    persona TEXT NOT NULL,
+    interval_hours INTEGER NOT NULL,
+    last_checked TEXT,
+    last_run_uuid TEXT,
+    last_status TEXT,
+    last_changes INTEGER
+);
+CREATE TABLE IF NOT EXISTS skills (
+    name TEXT PRIMARY KEY,
+    persona TEXT NOT NULL,
+    brief_template TEXT NOT NULL,
+    topic TEXT NOT NULL,
+    trusted_sources TEXT NOT NULL DEFAULT '',
+    excluded_sources TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS sources (
     run_uuid TEXT NOT NULL,
     url TEXT NOT NULL,
@@ -115,6 +134,63 @@ class Memory:
             "SELECT report_json FROM runs WHERE run_uuid = ?", (str(run_uuid),)
         ).fetchone()
         return self._report_row(row)
+
+    def add_watch(self, topic: str, brief: str, persona: str, interval_hours: int = 6) -> int:
+        interval = max(1, int(interval_hours or 0))  # never a busy-loop
+        cur = self._conn.execute(
+            "INSERT INTO watches (topic, brief, persona, interval_hours) VALUES (?, ?, ?, ?)",
+            (topic, brief, persona, interval),
+        )
+        self._conn.commit()
+        return cur.lastrowid
+
+    def remove_watch(self, watch_id: int) -> None:
+        self._conn.execute("DELETE FROM watches WHERE id = ?", (watch_id,))
+        self._conn.commit()
+
+    def list_watches(self) -> list[dict]:
+        rows = self._conn.execute("SELECT id, topic, brief, persona, interval_hours, last_checked, last_run_uuid, last_status, last_changes FROM watches ORDER BY id").fetchall()
+        return [{"id": r[0], "topic": r[1], "brief": r[2], "persona": r[3], "interval_hours": r[4],
+                 "last_checked": r[5], "last_run_uuid": r[6], "last_status": r[7], "last_changes": r[8]}
+                for r in rows]
+
+    def set_watch_result(self, watch_id: int, status: str, run_uuid: str | None = None,
+                         changes: int | None = None, checked_at: str | None = None) -> None:
+        from datetime import datetime, timezone
+        ts = checked_at or datetime.now(timezone.utc).isoformat(timespec="seconds")
+        self._conn.execute(
+            "UPDATE watches SET last_status = ?, last_run_uuid = COALESCE(?, last_run_uuid), "
+            "last_changes = COALESCE(?, last_changes), last_checked = ? WHERE id = ?",
+            (status, run_uuid, changes, ts, watch_id),
+        )
+        self._conn.commit()
+
+    def upsert_skill(self, name: str, persona: str, brief_template: str, topic: str,
+                     trusted: list[str] | None = None, excluded: list[str] | None = None) -> int:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO skills (name, persona, brief_template, topic, trusted_sources, excluded_sources) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (name, persona, brief_template, topic,
+             ",".join(trusted or []), ",".join(excluded or [])),
+        )
+        self._conn.commit()
+        return self._conn.execute("SELECT rowid FROM skills WHERE name = ?", (name,)).fetchone()[0]
+
+    def list_skills(self) -> list[dict]:
+        rows = self._conn.execute("SELECT name, persona, brief_template, topic, trusted_sources, excluded_sources FROM skills ORDER BY name").fetchall()
+        return [{"name": r[0], "persona": r[1], "brief_template": r[2], "topic": r[3],
+                 "trusted_sources": [x for x in r[4].split(",") if x],
+                 "excluded_sources": [x for x in r[5].split(",") if x]} for r in rows]
+
+    def delete_skill(self, name: str) -> None:
+        self._conn.execute("DELETE FROM skills WHERE name = ?", (name,))
+        self._conn.commit()
+
+    def latest_run_uuid_for_topic(self, topic_key: str) -> str | None:
+        row = self._conn.execute(
+            "SELECT run_uuid FROM runs WHERE topic_key = ? ORDER BY id DESC LIMIT 1", (topic_key,)
+        ).fetchone()
+        return row[0] if row else None
 
     def save_sources(self, run_uuid: str, sources: list[dict]) -> None:
         self._conn.executemany(

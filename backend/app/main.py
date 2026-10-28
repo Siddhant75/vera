@@ -44,8 +44,29 @@ class FeedbackIn(BaseModel):
 
 
 def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
-               daily_token_budget: int = 0) -> FastAPI:
-    app = FastAPI(title="Vera")
+               daily_token_budget: int = 0, watch_interval_minutes: int = 0) -> FastAPI:
+    from contextlib import asynccontextmanager
+
+    state = {"memory": memory, "llm": llm, "tavily": tavily,
+             "daily_token_budget": daily_token_budget,
+             "emit": None}
+
+    async def _emit_any(event: dict):
+        await bus.emit(event["run_id"], event)
+
+    state["emit"] = _emit_any
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        task = None
+        if watch_interval_minutes > 0:  # 0 = watcher off (tests, local dev)
+            from app.watcher import watch_loop
+            task = asyncio.create_task(watch_loop(state, watch_interval_minutes))
+        yield
+        if task:
+            task.cancel()
+
+    app = FastAPI(title="Vera", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
     )
@@ -102,6 +123,64 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         from app.telemetry import telemetry
         return telemetry.snapshot()
 
+    # ---- Topic Watch (always-on) ----
+    class WatchIn(BaseModel):
+        topic: str
+        brief: str
+        persona: str = "engineer"
+        interval_hours: int = 6
+
+    @app.post("/api/watch")
+    async def post_watch(w: WatchIn):
+        if not w.topic.strip() or not w.brief.strip():
+            return JSONResponse(status_code=422, content={"error": "topic and brief required"})
+        wid = memory.add_watch(w.topic.strip(), w.brief.strip(), w.persona, w.interval_hours)
+        return {"id": wid}
+
+    @app.get("/api/watch")
+    async def get_watch():
+        return memory.list_watches()
+
+    @app.delete("/api/watch/{watch_id}")
+    async def delete_watch(watch_id: int):
+        memory.remove_watch(watch_id)
+        return {"ok": True}
+
+    # ---- Skills (reusable research recipes) ----
+    class SkillIn(BaseModel):
+        name: str
+        persona: str = "engineer"
+        brief_template: str
+        topic: str = ""
+        trusted_sources: list[str] = []
+        excluded_sources: list[str] = []
+
+    @app.post("/api/skills")
+    async def post_skill(s: SkillIn):
+        if not s.name.strip() or not s.brief_template.strip():
+            return JSONResponse(status_code=422, content={"error": "name and brief_template required"})
+        sid = memory.upsert_skill(s.name.strip(), s.persona, s.brief_template.strip(), s.topic.strip(),
+                                  trusted=s.trusted_sources, excluded=s.excluded_sources)
+        return {"id": sid}
+
+    @app.get("/api/skills")
+    async def get_skills():
+        return memory.list_skills()
+
+    @app.delete("/api/skills/{name}")
+    async def delete_skill(name: str):
+        memory.delete_skill(name)
+        return {"ok": True}
+
+    @app.post("/api/skills/{name}/run")
+    async def run_skill(name: str):
+        skill = next((s for s in memory.list_skills() if s["name"] == name), None)
+        if not skill:
+            return JSONResponse(status_code=404, content={"error": "skill not found"})
+        memory.set_profile(skill["persona"], skill["trusted_sources"], skill["excluded_sources"])
+        r = ResearchIn(brief=skill["brief_template"], topic=skill["topic"], persona=skill["persona"])
+        return await post_research(r)
+
     return app
 
 
@@ -119,7 +198,8 @@ def build_app(settings: Settings | None = None) -> FastAPI:
     )
     tavily = TavilyClient(settings.tavily_api_key)
     memory = Memory(settings.db_path)
-    return create_app(llm, tavily, memory, daily_token_budget=settings.daily_token_budget)
+    return create_app(llm, tavily, memory, daily_token_budget=settings.daily_token_budget,
+                      watch_interval_minutes=settings.watch_interval_minutes)
 
 
 try:

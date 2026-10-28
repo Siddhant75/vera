@@ -176,3 +176,9 @@ footer { margin-top: 32px; color: var(--muted); text-align: center; }
 .unused-sources { list-style: none; padding: 0; margin: 8px 0 0; font-size: 13px; }
 .unused-sources a { color: var(--accent); text-decoration: none; }
 .muted { color: var(--muted); font-size: 12px; }
+
+.watch-box, .skills-box { margin-top: 4px; }
+.watch-list, .skills-list { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }
+.watch-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.watch-row button, .skills-list button { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 12px; }
+.skill-save { display: flex; gap: 6px; }

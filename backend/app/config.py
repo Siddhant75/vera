@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     verifier_models: Annotated[list[str], NoDecode] = []
     db_path: str = "vera.db"
     daily_token_budget: int = 0  # 0 = unlimited; guards credits on hosted demos
+    watch_interval_minutes: int = 0  # watcher cycle; 0 = off. Deployed default: 30
 
     @field_validator("verifier_models", mode="before")
     @classmethod

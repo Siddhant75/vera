@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { getReport, openEventStream, runResearch } from "./api";
+import { getReport, openEventStream, runResearch, runSkill } from "./api";
 import PersonaToggle from "./components/PersonaToggle";
 import PipelineView from "./components/PipelineView";
 import ReportView from "./components/ReportView";
 import TelemetryPanel from "./components/TelemetryPanel";
+import WatchToggle from "./components/WatchToggle";
+import SkillsPanel from "./components/SkillsPanel";
 import "./App.css";
 
 const SAMPLE_BRIEF = "Should our startup adopt Kubernetes or serverless for our new ML inference API?";
@@ -16,6 +18,28 @@ export default function App() {
   const [report, setReport] = useState(null);
   const [runSummary, setRunSummary] = useState(null);
   const [running, setRunning] = useState(false);
+
+  const runByName = async (skillName, delta) => {
+    setEvents([]);
+    setReport(null);
+    setRunSummary(null);
+    setRunning(true);
+    try {
+      const runId = await runSkill(skillName);
+      openEventStream(runId, (e) => {
+        setEvents((prev) => [...prev, e]);
+        if (e.stage === "done") {
+          setReport(e.payload.report);
+          setRunSummary(e.payload.run_summary || null);
+          setRunning(false);
+        } else if (e.stage === "error") {
+          setRunning(false);
+        }
+      });
+    } catch {
+      setRunning(false);
+    }
+  };
 
   const launch = async (delta) => {
     setEvents([]);
@@ -69,6 +93,8 @@ export default function App() {
             Run Delta (what changed)
           </button>
         </div>
+        <WatchToggle topic={topic} brief={brief} persona={persona} />
+        <SkillsPanel current={{ persona, brief, topic, excluded_sources: [] }} onRun={runByName} />
       </div>
 
       {events.length > 0 && <PipelineView events={events} />}

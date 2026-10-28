@@ -43,3 +43,40 @@ export async function sendFeedback(runId, claimId, helpful, claimText) {
     body: JSON.stringify({ run_id: runId, claim_id: claimId, helpful, claim_text: claimText || "" }),
   })).json();
 }
+
+export async function addWatch(topic, brief, persona, intervalHours = 6) {
+  return (await fetch(`${BASE}/api/watch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ topic, brief, persona, interval_hours: intervalHours }),
+  })).json();
+}
+
+export async function listWatches() {
+  return (await fetch(`${BASE}/api/watch`)).json();
+}
+
+export async function removeWatch(id) {
+  return (await fetch(`${BASE}/api/watch/${id}`, { method: "DELETE" })).json();
+}
+
+export async function listSkills() {
+  return (await fetch(`${BASE}/api/skills`)).json();
+}
+
+export async function saveSkill(skill) {
+  return (await fetch(`${BASE}/api/skills`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(skill),
+  })).json();
+}
+
+export async function deleteSkill(name) {
+  return (await fetch(`${BASE}/api/skills/${encodeURIComponent(name)}`, { method: "DELETE" })).json();
+}
+
+export async function runSkill(name) {
+  const r = await fetch(`${BASE}/api/skills/${encodeURIComponent(name)}/run`, { method: "POST" });
+  return (await r.json()).run_id;
+}
