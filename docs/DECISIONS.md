@@ -34,9 +34,23 @@ Key decisions, their reasoning, and the trade-offs accepted. Newest last.
 - **`DAILY_TOKEN_BUDGET` env** — hosted-demo protection: 429 when exhausted (process restarts reset it).
 - **Live measured impact** (bullet brief, 4 requirements): searches 45→16/20, tokens 411K→120K (−71%), calls 189→67, claims 84→10, prose ~4 pages→211 words; verdict spread healthier (6 supported / 2 contradicted / 2 disputed vs 81/3 skew).
 
+## Planned next (approved 2026-10-28, not yet built)
+
+- **Task 24 — Topic Watch (the track's "always-on")**: watched-topics table + in-app scheduler; due topic → automatic delta run → changes digest. Watcher failure = logged + retried next cycle (last missing fallback). Token cost ≈ $0.10-0.30/topic/day, inside DAILY_TOKEN_BUDGET.
+- **Task 25 — Skills (reusable, honest)**: named recipes = persona + brief template + topic + source prefs; CRUD + one-click run.
+- **Task 26 — Deployment**: frontend → Vercel; backend container → Render/Railway/fly.io free tier (Dockerfile); Nebius Serverless Endpoint/Job documented as optional sponsor-surface path. README labels honestly: "AI inference on Nebius Token Factory; demo hosted on Vercel/Render".
+- **Tavily prize upgrades**: role-labeled Tavily telemetry + README "How Tavily powers Vera" section.
+
 ## Deliberately out of scope
 
 Auth/accounts, PDF export, multi-language, chat-sidebar/history UI, Chrome extension, agent "modes", Physical AI track. Memory serves the single research journey only.
+
+## Track-fit + hosting + Tavily strategy (2026-10-28)
+
+- **Named track tools are NOT compulsory.** Verified across three sources (official-rules summaries, hackathon recaps): the rule is "runs on Nebius Token Factory / AI Cloud + ≥1 NVIDIA open model + genuinely fits a track". The track paragraph's "use tools such as NemoClaw, OpenShell, Hermes Agent, and Nebius Serverless" is exemplary ("such as"), not a checklist. NemoClaw/OpenShell/Hermes Agent dropped by user decision; Serverless retained as optional.
+- **Track retained: Personal AI** (re-checked against all four track texts). Best Apps and Agents also viable but broader field and less differentiated; Coding/Agentic skews dev-tooling; Physical AI impossible without hardware. Persistent memory — the track paragraph's first named feature — is Vera's headline subsystem.
+- **Demo hosting on Vercel/Render is compliant.** The submission clause is platform-neutral ("URL to a working demo, hosted application, or test build") and the hackathon credits cover only Token Factory + Tavily — no AI Cloud hosting credits exist, so requiring Nebius hosting would be incoherent. Compliance anchor: all model inference runs on Token Factory. Residual ~10% strict-reading risk; mitigation: optional Nebius Serverless Endpoint path (CPU, documented, not primary). Backend needs a real container (SSE + background scheduler + SQLite) → Render/Railway/fly.io free tier, not Vercel functions; frontend on Vercel.
+- **Best Use of Tavily ($3k) strategy**: Tavily already used in 4 distinct roles — grounding (per-sub-question), prosecution (refutation hunting), refereeing (disagreement re-checks), transparency (unused-sources pool). No surveyed competitor uses more than one. Upgrades: role-labeled Tavily telemetry (`8 grounding · 6 prosecution · 2 re-check`) + README "How Tavily powers Vera" section aimed at the Tavily judges on the panel.
 
 ## Submission artifacts remaining
 

@@ -38,8 +38,8 @@ cd frontend && npm install && npm run dev
 
 - **NVIDIA Nemotron** (open source, served on Nebius Token Factory) is the planner and synthesizer — it structures the research and writes your report.
 - **Cross-model adversarial verification** requires multiple *different* open models: each claim is judged by 2+ independent Token Factory models against the evidence. This is the product's core and is impossible with a single-model API.
-- **Tavily** is the referee: live web grounding for every search stage and every disputed claim.
-- The telemetry panel (top of the app) shows the live burn: Token Factory calls/tokens, Tavily queries, claims verified — the sponsor infrastructure is the visible engine, not a hidden dependency.
+- **Tavily** is not a wrapper here — it plays **four distinct roles**: **grounding** (research per sub-question), **prosecution** (refutation searches hunting counter-evidence), **refereeing** (re-checks when models disagree), and **transparency** (the full fetched-but-uncited source pool is published at the bottom of every report — judge the sources yourself). A per-run budget bounds and surfaces the burn: `grounding 8 · prosecution 6 · re-check 2` of 20.
+- The telemetry panel (top of the app) shows the live burn: Token Factory calls/tokens, role-labeled Tavily queries, claims verified — the sponsor infrastructure is the visible engine, not a hidden dependency.
 
 ## 🛠️ Architecture & Technical Implementation
 
@@ -56,7 +56,7 @@ brief → Planner → Searcher → Drafter → Verifier → Synthesizer → repo
 
 ## Track
 
-Personal AI — because the research agent knows your persona, remembers your past research, and reports what changed since last time.
+**Personal AI** — an always-on, private research assistant: persistent memory (it knows your role, goals, and past research), reusable research skills, source trust you control, and a topic watcher that keeps researching while you're away. All model inference runs on **Nebius Token Factory** with **NVIDIA Nemotron** + open models; the demo app is hosted on Vercel/Render (inference compliance is unchanged — every LLM call goes to Token Factory).
 
 ## License
 
