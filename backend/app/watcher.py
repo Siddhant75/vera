@@ -32,8 +32,16 @@ async def probe_changed(memory: Memory, tavily: TavilyClient, watch: dict) -> bo
     return any(r["url"] not in known for r in results)
 
 
+async def _post_digest(text: str, payload: dict, url: str) -> None:
+    """Operator-set webhook only (SSRF-safe: never from API input). 10s timeout."""
+    import httpx
+    async with httpx.AsyncClient(timeout=10) as client:
+        await client.post(url, json={"text": text, **payload})
+
+
 async def check_due_watches(memory: Memory, llm: TokenFactoryClient, tavily: TavilyClient,
                             emit, probe_fn=probe_changed, daily_token_budget: int = 0,
+                            webhook_url: str = "",
                             now: datetime | None = None) -> None:
     from app.telemetry import telemetry
     now = now or datetime.now(timezone.utc)
@@ -62,6 +70,15 @@ async def check_due_watches(memory: Memory, llm: TokenFactoryClient, tavily: Tav
             continue  # run_research already emitted its own error event; retry next cycle
         memory.set_watch_result(watch["id"], "changed", run_uuid=_last_run(memory, watch),
                                 changes=len(report.changes), checked_at=now.isoformat(timespec="seconds"))
+        if webhook_url:
+            try:
+                text = (f"Vera update on '{watch['topic']}': {len(report.changes)} changes — "
+                        + ("; ".join(report.changes[:8]) if report.changes else "fresh research run"))
+                await _post_digest(text, {"topic": watch["topic"], "changes": report.changes[:8],
+                                          "verdict_summary": report.verdict_summary,
+                                          "run_uuid": _last_run(memory, watch)}, webhook_url)
+            except Exception as exc:
+                log.warning("webhook delivery failed for watch %s: %s", watch["id"], exc)
 
 
 def _last_run(memory: Memory, watch: dict) -> str:
@@ -73,7 +90,8 @@ async def watch_loop(app_state, interval_minutes: int = 30) -> None:
     while True:
         try:
             await check_due_watches(app_state["memory"], app_state["llm"], app_state["tavily"],
-                                    emit=app_state["emit"], daily_token_budget=app_state["daily_token_budget"])
+                                    emit=app_state["emit"], daily_token_budget=app_state["daily_token_budget"],
+                                    webhook_url=app_state.get("webhook_url", ""))
         except asyncio.CancelledError:
             raise
         except Exception:

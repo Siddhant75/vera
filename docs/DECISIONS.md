@@ -40,6 +40,7 @@ Key decisions, their reasoning, and the trade-offs accepted. Newest last.
 - **Secrets scan = warn-and-save** (`scan_for_secrets`): API-key/password/private-key/card patterns produce loud save-time warnings; never silently blocked (user autonomy). Never-paste list shown in UI + README.
 - **Notes are topic-keyed and capped** (5/topic, 10k chars, oldest evicted); injected into planner+drafter prompts only for their topic; never rendered into unused-sources or exports.
 - **Webhook digest = operator-set env URL only** (`DIGEST_WEBHOOK_URL`) — never accepted from API input (SSRF-safe). Delivery failure = logged, watch still completes as `changed`; delivery is inbound-to-you only — Vera never auto-posts/publishes on a user's behalf.
+- **Webhook digest delivered after `changed` watch runs** — payload = topic + ≤8 changes + verdict summary; delivery failure logged, watch status unaffected (digest is a bonus, never a blocker).
 - **Purge-all wipes everything** (runs, verdicts, sources, feedback, watches, notes, skills — including profile): "delete my data" must mean all of it. Watcher loop tolerates the empty state.
 
 ## Planned next (approved 2026-10-28, not yet built)

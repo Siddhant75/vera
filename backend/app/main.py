@@ -49,6 +49,7 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
 
     state = {"memory": memory, "llm": llm, "tavily": tavily,
              "daily_token_budget": daily_token_budget,
+             "webhook_url": Settings().digest_webhook_url,
              "emit": None}
 
     async def _emit_any(event: dict):
