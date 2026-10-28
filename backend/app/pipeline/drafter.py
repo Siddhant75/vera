@@ -21,7 +21,8 @@ DRAFT_SCHEMA = {
 
 
 async def draft_claims(brief: str, plan: ResearchPlan, sources: list[Source],
-                       profile: dict, llm: TokenFactoryClient, model: str) -> list[Claim]:
+                       profile: dict, llm: TokenFactoryClient, model: str,
+                       notes: list[dict] | None = None) -> list[Claim]:
     by_q: dict[str, list[Source]] = {}
     for s in sources:
         by_q.setdefault(s.sub_question_id, []).append(s)

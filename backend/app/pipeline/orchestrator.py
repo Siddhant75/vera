@@ -30,8 +30,11 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
         await emit({"run_id": run_id, "stage": "planning", "payload": {"brief": brief}})
         prior_art = memory.prior_artifacts_for_topic(tk) if (delta and prior) else None
         from app.brief import parse_requirements
+        from app.privacy import safe_query
         requirements = parse_requirements(brief)
-        p = await plan(brief, active_persona, tk, profile, prior, llm, llm.planner_model)
+        notes = memory.list_notes(tk)
+        gate = (lambda q: safe_query(q, [n["content"] for n in notes], fallback=tk)) if notes else None
+        p = await plan(brief, active_persona, tk, profile, prior, llm, llm.planner_model, notes=notes)
 
         # Deterministic coverage gate: every parsed bullet must map to a sub-question.
         # LLM cannot skip this — code owns the check.
@@ -45,7 +48,7 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
         if uncovered:
             stage["current"] = "planning"
             p = await plan(brief, active_persona, tk, profile, prior, llm, llm.planner_model,
-                           missed_requirements=uncovered)
+                           missed_requirements=uncovered, notes=notes)
             uncovered = uncovered_reqs(p)
         if len(p.sub_questions) > 8:
             p = p.model_copy(update={"sub_questions": p.sub_questions[:8]})
@@ -72,18 +75,20 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
         search_plan = p.model_copy(update={"sub_questions": fresh_subs})
         from app.budget import SearchBudget
         budget = SearchBudget(budget_for_brief(brief))
-        sources = await search_sources(search_plan, tavily, memory.trust_multiplier, budget=budget)
+        sources = await search_sources(search_plan, tavily, memory.trust_multiplier, budget=budget,
+                                       gate=gate)
 
         stage["current"] = "drafting"
         await emit({"run_id": run_id, "stage": "drafting", "payload": {"source_count": len(sources)}})
-        claims = await draft_claims(brief, search_plan, sources, profile, llm, llm.drafter_model)
+        claims = await draft_claims(brief, search_plan, sources, profile, llm, llm.drafter_model,
+                                    notes=notes)
 
         stage["current"] = "verifying"
         await emit({"run_id": run_id, "stage": "verifying", "payload": {"claim_count": len(claims)}})
         verdicts = await verify_claims(claims, sources, llm.verifier_models, llm, tavily,
                                        trust_fn=memory.trust_multiplier,
                                        flagged_claims=memory.negative_claim_texts(),
-                                       budget=budget)
+                                       budget=budget, gate=gate)
 
         # merge reused claims (ids prefixed r- to avoid collisions) + their prior verdicts
         for sq_id, section in reused_sections.items():

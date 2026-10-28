@@ -42,7 +42,8 @@ def topic_key(topic_or_brief: str) -> str:
 
 async def plan(brief: str, persona: str, topic_key_in: str, profile: dict,
                prior_report: dict | None, llm: TokenFactoryClient, model: str,
-               missed_requirements: list[str] | None = None) -> ResearchPlan:
+               missed_requirements: list[str] | None = None,
+               notes: list[dict] | None = None) -> ResearchPlan:
     prior_note = ""
     if prior_report:
         open_qs = "\n".join(f"- {q}" for q in prior_report.get("open_questions", []))
@@ -73,7 +74,12 @@ async def plan(brief: str, persona: str, topic_key_in: str, profile: dict,
         missed_note = "\n\nMANDATORY: these explicitly requested items are NOT yet covered. " \
             "You MUST produce sub-questions answering each one:\n" + \
             "\n".join(f"- {r}" for r in missed_requirements)
-    user = f"Research brief: {brief}{prior_note}{missed_note}"
+    notes_note = ""
+    if notes:
+        block = "\n".join(f"- {n['content'][:2000]}" for n in notes)
+        notes_note = ("\n\nUSER PRIVATE NOTES (private: never repeat their content in search "
+                      f"queries; do not cite them as web sources):\n{block}")
+    user = f"Research brief: {brief}{prior_note}{missed_note}{notes_note}"
     data = await llm.chat_json(model, [
         {"role": "system", "content": system},
         {"role": "user", "content": user},

@@ -21,6 +21,12 @@ CREATE TABLE IF NOT EXISTS verdicts (
     model TEXT NOT NULL,
     web_checked INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_key TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 CREATE TABLE IF NOT EXISTS watches (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     topic TEXT NOT NULL,
@@ -134,6 +140,31 @@ class Memory:
             "SELECT report_json FROM runs WHERE run_uuid = ?", (str(run_uuid),)
         ).fetchone()
         return self._report_row(row)
+
+    def add_note(self, topic_key: str, content: str) -> tuple[int, list[str]]:
+        from app.privacy import scan_for_secrets
+        warnings = scan_for_secrets(content)
+        stored = content[:10_000]
+        # cap 5 per topic: evict oldest
+        old = self._conn.execute("SELECT id FROM notes WHERE topic_key = ? ORDER BY id", (topic_key,)).fetchall()
+        if len(old) >= 5:
+            for (oid,) in old[:len(old) - 4]:
+                self._conn.execute("DELETE FROM notes WHERE id = ?", (oid,))
+        cur = self._conn.execute("INSERT INTO notes (topic_key, content) VALUES (?, ?)",
+                                 (topic_key, stored))
+        self._conn.commit()
+        return cur.lastrowid, warnings
+
+    def list_notes(self, topic_key: str) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT id, content, created_at FROM notes WHERE topic_key = ? ORDER BY id DESC LIMIT 5",
+            (topic_key,),
+        ).fetchall()
+        return [{"id": r[0], "content": r[1], "created_at": r[2]} for r in rows]
+
+    def delete_note(self, note_id: int) -> None:
+        self._conn.execute("DELETE FROM notes WHERE id = ?", (note_id,))
+        self._conn.commit()
 
     def add_watch(self, topic: str, brief: str, persona: str, interval_hours: int = 6) -> int:
         interval = max(1, int(interval_hours or 0))  # never a busy-loop

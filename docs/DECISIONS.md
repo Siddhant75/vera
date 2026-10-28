@@ -34,6 +34,14 @@ Key decisions, their reasoning, and the trade-offs accepted. Newest last.
 - **`DAILY_TOKEN_BUDGET` env** — hosted-demo protection: 429 when exhausted (process restarts reset it).
 - **Live measured impact** (bullet brief, 4 requirements): searches 45→16/20, tokens 411K→120K (−71%), calls 189→67, claims 84→10, prose ~4 pages→211 words; verdict spread healthier (6 supported / 2 contradicted / 2 disputed vs 81/3 skew).
 
+## Add-ons build rulings (2026-10-29)
+
+- **Private notes privacy gate is deterministic** (`app/privacy.py` `safe_query`): every Tavily dispatch (sub-question, prosecutor, re-check) checked for word-4-gram overlap with note content; leaking query replaced by topic slug. Prompt-level instruction to the planner is defense-in-depth only — the code gate is the guarantee.
+- **Secrets scan = warn-and-save** (`scan_for_secrets`): API-key/password/private-key/card patterns produce loud save-time warnings; never silently blocked (user autonomy). Never-paste list shown in UI + README.
+- **Notes are topic-keyed and capped** (5/topic, 10k chars, oldest evicted); injected into planner+drafter prompts only for their topic; never rendered into unused-sources or exports.
+- **Webhook digest = operator-set env URL only** (`DIGEST_WEBHOOK_URL`) — never accepted from API input (SSRF-safe). Delivery failure = logged, watch still completes as `changed`; delivery is inbound-to-you only — Vera never auto-posts/publishes on a user's behalf.
+- **Purge-all wipes everything** (runs, verdicts, sources, feedback, watches, notes, skills — including profile): "delete my data" must mean all of it. Watcher loop tolerates the empty state.
+
 ## Planned next (approved 2026-10-28, not yet built)
 
 - **Task 24 — Topic Watch (the track's "always-on")**: watched-topics table + in-app scheduler; due topic → automatic delta run → changes digest. Watcher failure = logged + retried next cycle (last missing fallback). Token cost ≈ $0.10-0.30/topic/day, inside DAILY_TOKEN_BUDGET.

@@ -118,6 +118,30 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         memory.add_feedback(f.run_id, f.claim_id, f.helpful, claim_text=f.claim_text)
         return {"ok": True}
 
+    # ---- Private context notes ----
+    class NoteIn(BaseModel):
+        topic: str
+        content: str
+
+    @app.post("/api/notes")
+    async def post_note(n: NoteIn):
+        if not n.topic.strip() or not n.content.strip():
+            return JSONResponse(status_code=422, content={"error": "topic and content required"})
+        from app.privacy import scan_for_secrets
+        nid, warnings = memory.add_note(n.topic.strip(), n.content)
+        return {"id": nid, "warnings": warnings}
+
+    @app.get("/api/notes")
+    async def get_notes(topic: str = ""):
+        if not topic.strip():
+            return JSONResponse(status_code=422, content={"error": "topic required"})
+        return memory.list_notes(topic.strip())
+
+    @app.delete("/api/notes/{note_id}")
+    async def delete_note(note_id: int):
+        memory.delete_note(note_id)
+        return {"ok": True}
+
     @app.get("/api/telemetry")
     async def telemetry_snapshot():
         from app.telemetry import telemetry

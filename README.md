@@ -58,6 +58,15 @@ brief → Planner → Searcher → Drafter → Verifier → Synthesizer → repo
 
 **Personal AI** — an always-on, private research assistant: persistent memory (it knows your role, goals, and past research), reusable research skills, source trust you control, and a topic watcher that keeps researching while you're away. All model inference runs on **Nebius Token Factory** with **NVIDIA Nemotron** + open models; the demo app is hosted on Vercel/Render (inference compliance is unchanged — every LLM call goes to Token Factory).
 
+## 🔒 Security & Privacy
+
+Vera stores everything locally (SQLite, no accounts, no sync). Private notes attach to topics and inform planning/drafting. Two hard rules, enforced in code — not by prompt:
+
+- **Notes never reach Tavily.** Every search query is checked for 4-gram overlap with your notes before dispatch; a leaking query is replaced by the topic slug. (Planner models are told the same, but the code gate is the guarantee.)
+- **Secrets are warned at save-time, never silently accepted or blocked** — Vera scans for API-key/password/private-key/card-number patterns and tells you loudly.
+
+**Never paste into notes:** passwords, API keys, account numbers, medical records — anything you wouldn't tell a cloud service. Notes live on your machine, but their context is processed by Nebius Token Factory during research. Purge everything anytime from the app ("What Vera remembers" → delete).
+
 ## License
 
 Apache 2.0 — original implementation; no code from any surveyed open-source deep-research project.

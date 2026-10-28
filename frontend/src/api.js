@@ -80,3 +80,19 @@ export async function runSkill(name) {
   const r = await fetch(`${BASE}/api/skills/${encodeURIComponent(name)}/run`, { method: "POST" });
   return (await r.json()).run_id;
 }
+
+export async function addNote(topic, content) {
+  return (await fetch(`${BASE}/api/notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ topic, content }),
+  })).json();
+}
+
+export async function listNotes(topic) {
+  return (await fetch(`${BASE}/api/notes?topic=${encodeURIComponent(topic)}`)).json();
+}
+
+export async function deleteNote(id) {
+  return (await fetch(`${BASE}/api/notes/${id}`, { method: "DELETE" })).json();
+}

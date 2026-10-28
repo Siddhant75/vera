@@ -182,3 +182,6 @@ footer { margin-top: 32px; color: var(--muted); text-align: center; }
 .watch-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
 .watch-row button, .skills-list button { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 12px; }
 .skill-save { display: flex; gap: 6px; }
+
+.warning-box { border: 1px solid var(--yellow); border-radius: 6px; padding: 8px 12px; font-size: 13px; }
+.notes-list { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }
