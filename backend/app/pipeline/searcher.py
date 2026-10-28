@@ -8,7 +8,7 @@ from app.search import TavilyClient
 async def _one(sq, tavily: TavilyClient, trust_fn, budget=None) -> list[Source]:
     if budget is not None and not budget.try_consume():
         return []  # search budget exhausted: sub-question degrades to zero sources, visibly
-    results = await tavily.search(sq.text)
+    results = await tavily.search(sq.text, role="grounding")
     out = []
     for r in results:
         trust = trust_fn(domain_of(r["url"]))

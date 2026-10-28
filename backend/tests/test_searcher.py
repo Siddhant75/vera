@@ -51,7 +51,7 @@ async def test_search_failure_propagates():
     from app.search import SearchError
 
     class SearchErrorTavily(FakeTavily):
-        async def search(self, query, max_results=5):
+        async def search(self, query, max_results=5, role="grounding"):
             if "Why" in query:
                 raise SearchError("tavily down")
             return [{"url": "https://a.com/1", "title": "A", "content": "c"}]

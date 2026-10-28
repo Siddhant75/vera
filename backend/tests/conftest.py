@@ -54,7 +54,7 @@ class FakeTavily:
         self.queries: list[str] = []
         self.results: dict[str, list[dict]] = dict(results or {})
 
-    async def search(self, query, max_results=5):
+    async def search(self, query, max_results=5, role="grounding"):
         self.queries.append(query)
         return self.results.get(query, [])
 

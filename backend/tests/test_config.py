@@ -4,6 +4,9 @@ from app.config import Settings
 
 
 def test_settings_defaults(monkeypatch):
+    for var in ("TOKEN_FACTORY_API_KEY", "TAVILY_API_KEY", "TOKEN_FACTORY_BASE_URL",
+                "PLANNER_MODEL", "VERIFIER_MODELS", "DB_PATH"):
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("TOKEN_FACTORY_API_KEY", "k")
     monkeypatch.setenv("TAVILY_API_KEY", "t")
     s = Settings(_env_file=None)

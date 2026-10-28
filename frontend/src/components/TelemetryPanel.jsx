@@ -20,7 +20,10 @@ export default function TelemetryPanel() {
     <div className="telemetry">
       <span className="pill live">● Live</span>
       <span className="pill">Token Factory: {snap.tf_calls} calls / {snap.tf_tokens} tokens</span>
-      <span className="pill">Tavily: {snap.tavily_queries} queries</span>
+      <span className="pill">
+        Tavily: {snap.tavily_grounding} grounding · {snap.tavily_prosecution} prosecution ·{" "}
+        {snap.tavily_recheck} re-check
+      </span>
       <span className="pill">verified: {snap.claims_verified} claims</span>
     </div>
   );

@@ -100,7 +100,7 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
             parts.append(f"PROSECUTOR SUSPICIONS: {out['suspicions']}")
         query = out.get("refutation_query")
         if query and (budget is None or budget.try_consume()):
-            web = await tavily.search(query)
+            web = await tavily.search(query, role="prosecution")
             for w in _web_sources(web, claim.sub_question_id, trust_fn):
                 parts.append(f"REFUTATION EVIDENCE ({w.url}): {w.title} - {w.content[:800]}")
         elif query:
@@ -121,7 +121,7 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
                            + " [budget-limited: web re-check skipped]",
                     model=",".join(models), web_checked=False,
                 )
-            web = await tavily.search(claim.text)
+            web = await tavily.search(claim.text, role="recheck")
             web_srcs = _web_sources(web, claim.sub_question_id, trust_fn)
             evidence = _evidence([*by_q.get(claim.sub_question_id, []), *web_srcs])
             round1 = await asyncio.gather(*(_ask(m, claim, evidence) for m in models))
