@@ -7,6 +7,7 @@ import TelemetryPanel from "./components/TelemetryPanel";
 import WatchToggle from "./components/WatchToggle";
 import SkillsPanel from "./components/SkillsPanel";
 import NotesPanel from "./components/NotesPanel";
+import MemoryPanel from "./components/MemoryPanel";
 import "./App.css";
 
 const SAMPLE_BRIEF = "Should our startup adopt Kubernetes or serverless for our new ML inference API?";
@@ -97,6 +98,7 @@ export default function App() {
         <WatchToggle topic={topic} brief={brief} persona={persona} />
         <SkillsPanel current={{ persona, brief, topic, excluded_sources: [] }} onRun={runByName} />
         <NotesPanel topic={topic} />
+        <MemoryPanel />
       </div>
 
       {events.length > 0 && <PipelineView events={events} />}

@@ -143,6 +143,22 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         memory.delete_note(note_id)
         return {"ok": True}
 
+    # ---- Memory control (your data under your control) ----
+    @app.get("/api/memory")
+    async def get_memory():
+        from app.telemetry import telemetry
+        return {"runs": memory.list_runs(), "telemetry": telemetry.snapshot()}
+
+    @app.delete("/api/runs/{run_uuid}")
+    async def delete_run(run_uuid: str):
+        memory.delete_run(run_uuid)
+        return {"ok": True}
+
+    @app.delete("/api/memory")
+    async def purge_memory():
+        memory.purge_all()
+        return {"ok": True}
+
     @app.get("/api/telemetry")
     async def telemetry_snapshot():
         from app.telemetry import telemetry

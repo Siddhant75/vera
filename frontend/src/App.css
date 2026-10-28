@@ -185,3 +185,9 @@ footer { margin-top: 32px; color: var(--muted); text-align: center; }
 
 .warning-box { border: 1px solid var(--yellow); border-radius: 6px; padding: 8px 12px; font-size: 13px; }
 .notes-list { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }
+
+.memory-box { margin-top: 4px; }
+.memory-list { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }
+.purge-row { display: flex; gap: 6px; margin-top: 4px; }
+.purge-row .danger { background: var(--red); color: #fff; border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+.purge-row .danger:disabled { opacity: 0.4; cursor: default; }

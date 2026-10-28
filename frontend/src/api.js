@@ -96,3 +96,15 @@ export async function listNotes(topic) {
 export async function deleteNote(id) {
   return (await fetch(`${BASE}/api/notes/${id}`, { method: "DELETE" })).json();
 }
+
+export async function listMemory() {
+  return (await fetch(`${BASE}/api/memory`)).json();
+}
+
+export async function deleteRun(runUuid) {
+  return (await fetch(`${BASE}/api/runs/${runUuid}`, { method: "DELETE" })).json();
+}
+
+export async function purgeMemory() {
+  return (await fetch(`${BASE}/api/memory`, { method: "DELETE" })).json();
+}

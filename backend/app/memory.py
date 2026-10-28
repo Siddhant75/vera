@@ -217,6 +217,25 @@ class Memory:
         self._conn.execute("DELETE FROM skills WHERE name = ?", (name,))
         self._conn.commit()
 
+    def list_runs(self, limit: int = 50) -> list[dict]:
+        rows = self._conn.execute(
+            "SELECT run_uuid, brief, persona, topic_key, created_at FROM runs ORDER BY id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [{"run_uuid": r[0], "brief": r[1], "persona": r[2], "topic_key": r[3], "created_at": r[4]}
+                for r in rows]
+
+    def delete_run(self, run_uuid: str) -> None:
+        for table in ("runs", "verdicts", "sources", "feedback"):
+            col = "run_uuid"
+            self._conn.execute(f"DELETE FROM {table} WHERE {col} = ?", (str(run_uuid),))
+        self._conn.commit()
+
+    def purge_all(self) -> None:
+        for table in ("runs", "verdicts", "sources", "feedback", "watches", "notes", "skills", "profile"):
+            self._conn.execute(f"DELETE FROM {table}")
+        self._conn.commit()
+
     def latest_run_uuid_for_topic(self, topic_key: str) -> str | None:
         row = self._conn.execute(
             "SELECT run_uuid FROM runs WHERE topic_key = ? ORDER BY id DESC LIMIT 1", (topic_key,)

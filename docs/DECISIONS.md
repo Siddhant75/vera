@@ -41,7 +41,7 @@ Key decisions, their reasoning, and the trade-offs accepted. Newest last.
 - **Notes are topic-keyed and capped** (5/topic, 10k chars, oldest evicted); injected into planner+drafter prompts only for their topic; never rendered into unused-sources or exports.
 - **Webhook digest = operator-set env URL only** (`DIGEST_WEBHOOK_URL`) — never accepted from API input (SSRF-safe). Delivery failure = logged, watch still completes as `changed`; delivery is inbound-to-you only — Vera never auto-posts/publishes on a user's behalf.
 - **Webhook digest delivered after `changed` watch runs** — payload = topic + ≤8 changes + verdict summary; delivery failure logged, watch status unaffected (digest is a bonus, never a blocker).
-- **Purge-all wipes everything** (runs, verdicts, sources, feedback, watches, notes, skills — including profile): "delete my data" must mean all of it. Watcher loop tolerates the empty state.
+- **Purge-all wipes everything** (runs, verdicts, sources, feedback, watches, notes, skills — including profile): "delete my data" must mean all of it. Watcher loop tolerates the empty state. UI: runs list with per-run delete + type-DELETE-to-confirm purge.
 
 ## Planned next (approved 2026-10-28, not yet built)
 
