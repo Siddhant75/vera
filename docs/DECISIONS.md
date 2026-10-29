@@ -99,6 +99,30 @@ Auth/accounts, PDF export, multi-language, chat-sidebar/history UI, Chrome exten
 - **Demo hosting on Vercel/Render is compliant.** The submission clause is platform-neutral ("URL to a working demo, hosted application, or test build") and the hackathon credits cover only Token Factory + Tavily — no AI Cloud hosting credits exist, so requiring Nebius hosting would be incoherent. Compliance anchor: all model inference runs on Token Factory. Residual ~10% strict-reading risk; mitigation: optional Nebius Serverless Endpoint path (CPU, documented, not primary). Backend needs a real container (SSE + background scheduler + SQLite) → Render/Railway/fly.io free tier, not Vercel functions; frontend on Vercel.
 - **Best Use of Tavily ($3k) strategy**: Tavily already used in 4 distinct roles — grounding (per-sub-question), prosecution (refutation hunting), refereeing (disagreement re-checks), transparency (unused-sources pool). No surveyed competitor uses more than one. Upgrades: role-labeled Tavily telemetry (`8 grounding · 6 prosecution · 2 re-check`) + README "How Tavily powers Vera" section aimed at the Tavily judges on the panel.
 
+## Deferred minors (known, consciously not fixed — newest last)
+
+Recorded for honesty and as the post-hackathon backlog. Each survived a fresh full-branch review as Minor; none is judge-visible in normal use.
+
+### Shine pass review (2026-10-29)
+- `memory.py` — `watches` CREATE in `_SCHEMA` text lacks `last_digest`; fresh DBs get it via the guarded ALTER only (works; schema text incomplete).
+- `tests/test_webhook.py` — `RecordingTavily` class is dead code.
+- `tests/test_webhook.py` — `test_webhook_500_does_not_break_watch` injects `ConnectError`, not a real `HTTPStatusError` through the watcher path (test name overstates coverage).
+- `frontend/src/api.js` — `requestJson` parses body before checking `r.ok`: non-JSON error body (proxy 500 HTML) surfaces a cryptic message; stuck-UI bug stays fixed.
+- `app/models.py` — stale comment on `claim_proofs` (missing `votes`/`prosecution`).
+
+### Tavily depth pass review (2026-10-29)
+- `pipeline/verifier.py` — skipped extract produces no `[budget-limited: extract skipped]` reason note; the between-calls exhaustion case (`SearchBudget(1)`) unpinned.
+- `pipeline/verifier.py` — FULL PAGE evidence bypasses the documented top-8×800 evidence cap (bounded in practice: claims cite 1-3 URLs).
+- `pipeline/verifier.py` — community search burns a budget unit even when the refutation search with the same query returned zero results.
+- `memory.py` — `clean_domains` misses scheme-less URLs with paths (`en.wikipedia.org/art`); post-hoc trust filter still catches these.
+- `tests/test_verifier.py` — no dedicated reddit-returns-empty test (correct by inspection; FakeTavily scripts by query key).
+
+### Mode-upgrades review (2026-10-30)
+- `main.py`/`memory.py` — `PUT /api/watch/{id}` accepts empty `brief`/`topic` strings: wipes the frozen brief where POST 422s; fix = 422 or treat `''` as NULL.
+- `tests/test_watcher.py` — backoff unpinned at the 2-error (4×) and 16×-cap cases; regressions to unbounded `2**n` would pass.
+- `tests/test_memory.py` — pre-existing legacy row's `source="manual"` read-back unpinned (ALTER DEFAULT covers it).
+- `frontend/src/components/WatchToggle.jsx` — `editWatch` rejection unhandled (no catch/finally-refresh on 404/network).
+
 ## Submission artifacts remaining
 
 Hosted demo URL (set `DAILY_TOKEN_BUDGET` first), <3-min YouTube video, devpost submission.
