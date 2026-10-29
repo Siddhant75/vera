@@ -29,7 +29,7 @@ cd frontend && npm install && npm run dev
 ## 🚀 How It Works (The Magic)
 
 1. **Plan** — Nemotron decomposes your brief into sub-questions phrased for your persona (engineer/founder/analyst), or for *what changed* if you researched this topic before.
-2. **Search** — live Tavily web search per sub-question, weighted by your trusted sources.
+2. **Search** — live Tavily web search per sub-question, with your trusted source domains preferred inside the query itself and banned domains excluded at the source.
 3. **Draft** — atomic claims extracted from fetched sources; every claim must cite a real fetched URL; uncited claims are dropped, not guessed.
 4. **Verify** — a prosecutor pass hunts counter-evidence for every claim (live Tavily refutation search), then 2+ independent models vote on claim + refutation evidence. Disagreement triggers a second web re-check → supported / contradicted / disputed. **Expand any claim to watch the fight: each model's individual vote and the prosecutor's counter-evidence are shown verbatim.**
 5. **Synthesize** — persona-voiced report with verdict badges and open questions written back to research memory. Run a delta on the same topic and truly-reused sub-questions skip search/draft/verify entirely — the report shows what changed.
@@ -38,7 +38,7 @@ cd frontend && npm install && npm run dev
 
 - **NVIDIA Nemotron** (open source, served on Nebius Token Factory) is the planner and synthesizer — it structures the research and writes your report.
 - **Cross-model adversarial verification** requires multiple *different* open models: each claim is judged by 2+ independent Token Factory models against the evidence. This is the product's core and is impossible with a single-model API.
-- **Tavily** is not a wrapper here — it plays **four distinct roles**: **grounding** (research per sub-question), **prosecution** (refutation searches hunting counter-evidence), **refereeing** (re-checks when models disagree), and **transparency** (the full fetched-but-uncited source pool is published at the bottom of every report — judge the sources yourself). A per-run budget bounds and surfaces the burn: `grounding 8 · prosecution 6 · re-check 2` of 20.
+- **Tavily** is not a wrapper here — it plays **six distinct roles**, every one budget-capped and visible in telemetry: **grounding** (research per sub-question, with your trusted domains *preferred inside the query* and banned domains excluded at the source), **prosecution** (refutation searches hunting counter-evidence), **community prosecution** (the same hunt restricted to reddit.com — practitioner counter-evidence is a different evidence class), **refereeing** (re-checks when models disagree), **full-page extraction** (on re-check, the claim's own cited pages are extracted so models judge the whole page, not a snippet), and **transparency** (the fetched-but-uncited source pool is published at the bottom of every report — judge the sources yourself). A per-run budget bounds and surfaces the burn: `grounding 8 · prosecution 6 · re-check 2 · extracts 1` of 20. Tavily never *reasons*: no `/research` endpoint, no `include_answer` — finding evidence is Tavily's job; thinking is done by NVIDIA open models on Nebius Token Factory.
 - The telemetry panel (top of the app) shows the live burn: Token Factory calls/tokens, role-labeled Tavily queries, claims verified — the sponsor infrastructure is the visible engine, not a hidden dependency.
 
 ## 🛠️ Architecture & Technical Implementation
