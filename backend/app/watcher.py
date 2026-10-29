@@ -28,8 +28,8 @@ async def probe_changed(memory: Memory, tavily: TavilyClient, watch: dict) -> bo
     if not last_uuid:
         return True
     results = await tavily.search(watch["topic"], max_results=5, role="grounding")
-    excluded = set(memory.get_profile().get("excluded_sources", []))
-    results = [r for r in results if domain_of(r["url"]) not in excluded]  # banned-domain news is not news
+    results = [r for r in results
+               if memory.trust_multiplier(domain_of(r["url"])) > 0.0]  # same trust semantics as searcher/verifier
     known = {s["url"] for s in memory.get_sources(last_uuid)}
     return any(r["url"] not in known for r in results)
 
