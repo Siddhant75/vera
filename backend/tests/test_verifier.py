@@ -214,3 +214,36 @@ async def test_community_prosecution_skipped_when_budget_out():
     out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily, budget=b)
     assert len(tavily.queries) == 1  # no community search
     assert out[0].verdict == "supported"
+
+
+async def test_recheck_extracts_cited_pages():
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE_CLEAN, SUP, SUP], "mB": [CON, CON]})
+    tavily = FakeTavily({"X is true": [{"url": "https://w.com/x", "title": "W", "content": "web evidence"}]})
+    tavily.extract_results = [{"url": "https://a.com/1", "content": "FULL PAGE BODY"}]
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
+    assert tavily.extract_calls and tavily.extract_calls[0][0] == ["https://a.com/1"]  # the claim's cited URL
+    assert "FULL PAGE BODY" in str(llm.prompts[2:])  # re-votes see the extracted page
+    assert out[0].web_checked is True
+
+
+async def test_recheck_extract_failure_degrades():
+    from app.search import SearchError
+
+    class ExtractFailTavily(FakeTavily):
+        async def extract(self, urls, query=None, extract_depth="basic"):
+            raise SearchError("extract down")
+
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE_CLEAN, SUP, SUP], "mB": [CON, CON]})
+    tavily = ExtractFailTavily({"X is true": [{"url": "https://w.com/x", "title": "W", "content": "web evidence"}]})
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
+    assert out[0].web_checked is True  # re-check proceeded snippet-only
+    assert out[0].verdict == "contradicted"
+
+
+async def test_recheck_extract_skipped_when_budget_out():
+    from app.budget import SearchBudget
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE_CLEAN, SUP], "mB": [CON]})
+    tavily = FakeTavily()
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily, budget=SearchBudget(0))
+    assert not tavily.extract_calls
+    assert "budget-limited" in out[0].reason

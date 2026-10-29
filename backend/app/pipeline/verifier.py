@@ -3,7 +3,7 @@ import asyncio
 from app.llm import TokenFactoryClient
 from app.memory import domain_of
 from app.models import Claim, Source, Verdict
-from app.search import TavilyClient
+from app.search import SearchError, TavilyClient
 from app.telemetry import telemetry
 
 VERDICT_SCHEMA = {
@@ -137,6 +137,17 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
                                       exclude_domains=(domain_prefs or {}).get("excluded") or None)
             web_srcs = _web_sources(web, claim.sub_question_id, trust_fn)
             evidence = _evidence([*by_q.get(claim.sub_question_id, []), *web_srcs])
+            # full-page extract of the claim's own cited sources: kills "snippet says X, page says Y" errors.
+            # After the re-search in budget priority (re-search > extract).
+            if budget is None or budget.try_consume():
+                try:
+                    extracted = await tavily.extract(claim.citation_urls[:20],
+                                                     query=gate(claim.text) if gate else claim.text)
+                    pages = "\n\n".join(f"FULL PAGE ({e['url']}): {e['content'][:800]}" for e in extracted)
+                    if pages:
+                        evidence += f"\n\n{pages}"
+                except SearchError:
+                    pass  # degrade to snippet re-check, visibly still web_checked
             round1 = await asyncio.gather(*(_ask(m, claim, evidence) for m in models))
             web_checked = True
         return Verdict(

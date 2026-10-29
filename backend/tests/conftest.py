@@ -50,10 +50,12 @@ class FakeLLM:
 class FakeTavily:
     """Scripted TavilyClient double."""
 
-    def __init__(self, results=None):
+    def __init__(self, results=None, extract_results=None):
         self.queries: list[str] = []
         self.kwargs: list[dict] = []
         self.results: dict[str, list[dict]] = dict(results or {})
+        self.extract_calls: list = []
+        self.extract_results: list[dict] = list(extract_results or [])
 
     async def search(self, query, max_results=5, role="grounding", **kw):
         self.queries.append(query)
@@ -61,6 +63,6 @@ class FakeTavily:
         return self.results.get(query, [])
 
     async def extract(self, urls, query=None, extract_depth="basic"):
-        self.kwargs.append({"urls": urls, "query": query})
-        return []
+        self.extract_calls.append((list(urls), query))
+        return self.extract_results
 
