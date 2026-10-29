@@ -55,7 +55,7 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
                         models: list[str], llm: TokenFactoryClient,
                         tavily: TavilyClient, trust_fn=None,
                         max_concurrency: int = 6, flagged_claims: list[str] | None = None,
-                        budget=None, gate=None) -> list[Verdict]:
+                        budget=None, gate=None, domain_prefs: dict | None = None) -> list[Verdict]:
     sem = asyncio.Semaphore(max_concurrency)
     strictness = ""
     if flagged_claims:
@@ -87,6 +87,8 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
 
     async def _prosecute(claim: Claim, evidence: str) -> str:
         # Active adversarial pass: hunt counter-evidence BEFORE voting, not just after disagreement.
+        prefs = domain_prefs or {}
+        excluded = prefs.get("excluded") or None  # exclude-only: counter-evidence must not be biased toward trusted sources
         out = await _ask_raw(models[0], [
             {"role": "system", "content": (
                 "You are a prosecutor. Your job is to find why this claim might be WRONG. "
@@ -100,9 +102,16 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
             parts.append(f"PROSECUTOR SUSPICIONS: {out['suspicions']}")
         query = out.get("refutation_query")
         if query and (budget is None or budget.try_consume()):
-            web = await tavily.search(gate(query) if gate else query, role="prosecution")
+            web = await tavily.search(gate(query) if gate else query, role="prosecution",
+                                      exclude_domains=excluded)
             for w in _web_sources(web, claim.sub_question_id, trust_fn):
                 parts.append(f"REFUTATION EVIDENCE ({w.url}): {w.title} - {w.content[:800]}")
+            # community prosecution: practitioner counter-evidence is a different evidence class
+            if budget is None or budget.try_consume():
+                community = await tavily.search(gate(query) if gate else query, role="prosecution",
+                                                include_domains=["reddit.com"], exclude_domains=excluded)
+                for w in _web_sources(community, claim.sub_question_id, trust_fn):
+                    parts.append(f"COMMUNITY EVIDENCE ({w.url}): {w.title} - {w.content[:500]}")
         elif query:
             parts.append("PROSECUTOR: search budget exhausted - refutation search skipped")
         return "\n".join(parts)
@@ -124,7 +133,8 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
                            for m, r in zip(models, round1)],
                     prosecution=prosecution[:800],
                 )
-            web = await tavily.search(gate(claim.text) if gate else claim.text, role="recheck")
+            web = await tavily.search(gate(claim.text) if gate else claim.text, role="recheck",
+                                      exclude_domains=(domain_prefs or {}).get("excluded") or None)
             web_srcs = _web_sources(web, claim.sub_question_id, trust_fn)
             evidence = _evidence([*by_q.get(claim.sub_question_id, []), *web_srcs])
             round1 = await asyncio.gather(*(_ask(m, claim, evidence) for m in models))

@@ -51,7 +51,7 @@ async def test_search_failure_propagates():
     from app.search import SearchError
 
     class SearchErrorTavily(FakeTavily):
-        async def search(self, query, max_results=5, role="grounding"):
+        async def search(self, query, max_results=5, role="grounding", **kw):
             if "Why" in query:
                 raise SearchError("tavily down")
             return [{"url": "https://a.com/1", "title": "A", "content": "c"}]
@@ -74,3 +74,17 @@ async def test_budget_enforced_in_searcher():
 
 def tavily_queries_seen(out):
     return [s for s in out if not s.url]
+
+
+async def test_grounding_search_carries_domain_prefs():
+    tavily = FakeTavily(RESULTS)
+    prefs = {"trusted": ["good.com"], "excluded": ["excluded.com"]}
+    await search_sources(PLAN, tavily, trust_fn, domain_prefs=prefs)
+    assert all(kw.get("include_domains") == ["good.com"] for kw in tavily.kwargs)
+    assert all(kw.get("exclude_domains") == ["excluded.com"] for kw in tavily.kwargs)
+
+
+async def test_grounding_no_prefs_no_kwargs():
+    tavily = FakeTavily(RESULTS)
+    await search_sources(PLAN, tavily, trust_fn)
+    assert all(kw == {} for kw in tavily.kwargs)

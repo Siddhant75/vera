@@ -74,9 +74,12 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
             "reused": [sq.text for sq in p.sub_questions if sq.id in reused_sections]}})
         search_plan = p.model_copy(update={"sub_questions": fresh_subs})
         from app.budget import SearchBudget
+        from app.memory import clean_domains
+        domain_prefs = {"trusted": clean_domains(profile.get("trusted_sources", [])),
+                        "excluded": clean_domains(profile.get("excluded_sources", []))}
         budget = SearchBudget(budget_for_brief(brief))
         sources = await search_sources(search_plan, tavily, memory.trust_multiplier, budget=budget,
-                                       gate=gate)
+                                       gate=gate, domain_prefs=domain_prefs)
 
         stage["current"] = "drafting"
         await emit({"run_id": run_id, "stage": "drafting", "payload": {"source_count": len(sources)}})
@@ -88,7 +91,7 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
         verdicts = await verify_claims(claims, sources, llm.verifier_models, llm, tavily,
                                        trust_fn=memory.trust_multiplier,
                                        flagged_claims=memory.negative_claim_texts(),
-                                       budget=budget, gate=gate)
+                                       budget=budget, gate=gate, domain_prefs=domain_prefs)
 
         # merge reused claims (ids prefixed r- to avoid collisions) + their prior verdicts
         for sq_id, section in reused_sections.items():

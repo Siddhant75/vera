@@ -164,6 +164,23 @@ async def test_run_summary_and_sources_persisted(tmp_path):
     assert report.sources_unused == []  # a.com/1 cited → nothing unused
 
 
+async def test_domain_prefs_threaded_from_profile(tmp_path):
+    llm = make_llm([PLAN, DRAFT, VERDICT_SUP, VERDICT_SUP, NARR])
+    memory = Memory(str(tmp_path / "t.db"))
+    memory.set_profile("engineer", ["a.com"], ["spam.io"])
+    tavily = FakeTavily(SOURCES)
+    events = []
+
+    async def emit(e):
+        events.append(e)
+
+    await run_research("r-prefs", "Explain X", "engineer", "", False, llm, tavily, memory, emit)
+    grounding = [kw for kw in tavily.kwargs if "include_domains" in kw or "exclude_domains" in kw]
+    assert grounding, "grounding searches never received domain prefs"
+    assert all(kw.get("include_domains") == ["a.com"] for kw in grounding)
+    assert all(kw.get("exclude_domains") == ["spam.io"] for kw in grounding)
+
+
 async def test_notes_considered_counted(tmp_path):
     llm = make_llm([PLAN, DRAFT, VERDICT_SUP, VERDICT_SUP, NARR])
     memory = Memory(str(tmp_path / "t.db"))

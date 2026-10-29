@@ -309,3 +309,17 @@ class Memory:
 
 def domain_of(url: str) -> str:
     return urlparse(url).hostname or ""
+
+
+def clean_domains(domains: list[str]) -> list[str]:
+    """Normalize user-supplied domain prefs (accept bare domains or URLs), dedupe, cap 150 (Tavily limit)."""
+    out: list[str] = []
+    for d in domains or []:
+        d = (d or "").strip().lower()
+        if not d:
+            continue
+        if "." in d and "/" in d:  # looks like a URL — keep the host
+            d = urlparse(d).hostname or d
+        if d and d not in out:
+            out.append(d)
+    return out[:150]

@@ -186,3 +186,31 @@ async def test_budget_limited_verdict_carries_round1_votes():
         {"model": "mB", "verdict": "uncertain", "reason": "unclear"},
     ]
     assert out[0].prosecution == ""
+
+
+async def test_prosecution_excludes_banned_domains():
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP], "mB": [SUP]})
+    tavily = FakeTavily({"X is wrong": [{"url": "https://allowed.com/r", "title": "R", "content": "refuting"}]})
+    await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily,
+                        domain_prefs={"trusted": ["good.com"], "excluded": ["banned.com"]})
+    assert tavily.kwargs[0]["exclude_domains"] == ["banned.com"]
+    assert "include_domains" not in tavily.kwargs[0]  # counter-evidence must not be biased toward trusted sources
+
+
+async def test_community_prosecution_adds_evidence():
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP], "mB": [SUP]})
+    tavily = FakeTavily({"X is wrong": [{"url": "https://allowed.com/r", "title": "R", "content": "refuting data"}]})
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
+    assert len(tavily.queries) == 2  # refutation search + community search
+    assert tavily.kwargs[1]["include_domains"] == ["reddit.com"]
+    assert "COMMUNITY EVIDENCE" in str(llm.prompts[1:])  # voters see it
+
+
+async def test_community_prosecution_skipped_when_budget_out():
+    from app.budget import SearchBudget
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP], "mB": [SUP]})
+    tavily = FakeTavily({"X is wrong": [{"url": "https://allowed.com/r", "title": "R", "content": "refuting"}]})
+    b = SearchBudget(1)  # first prosecution search consumes the unit
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily, budget=b)
+    assert len(tavily.queries) == 1  # no community search
+    assert out[0].verdict == "supported"
