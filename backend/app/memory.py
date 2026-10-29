@@ -78,6 +78,9 @@ class Memory:
         rcols = [r[1] for r in self._conn.execute("PRAGMA table_info(runs)").fetchall()]
         if "source" not in rcols:
             self._conn.execute("ALTER TABLE runs ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'")
+        fcols = [r[1] for r in self._conn.execute("PRAGMA table_info(feedback)").fetchall()]
+        if "claim_text" not in fcols:
+            self._conn.execute("ALTER TABLE feedback ADD COLUMN claim_text TEXT NOT NULL DEFAULT ''")
 
     def get_profile(self) -> dict:
         row = self._conn.execute("SELECT value FROM profile WHERE key='profile'").fetchone()

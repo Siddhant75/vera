@@ -135,3 +135,15 @@ def test_prior_artifacts_for_topic(tmp_path):
     assert art["sections"][0]["claims"][0]["id"] == "c1"
     assert art["verdicts"]["c1"]["verdict"] == "supported"
     assert m.prior_artifacts_for_topic("missing") is None
+
+
+def test_feedback_claim_text_migrates_legacy(tmp_path):
+    import sqlite3
+    p = str(tmp_path / "legacy.db")
+    c = sqlite3.connect(p)
+    c.execute("CREATE TABLE feedback (run_uuid TEXT NOT NULL, claim_id TEXT NOT NULL, helpful INTEGER NOT NULL)")
+    c.commit()
+    c.close()
+    m = Memory(p)
+    m.add_feedback("r1", "c1", helpful=False, claim_text="bad claim")
+    assert m.negative_claim_texts() == ["bad claim"]
