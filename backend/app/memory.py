@@ -202,10 +202,10 @@ class Memory:
         self._conn.commit()
 
     def list_watches(self) -> list[dict]:
-        rows = self._conn.execute("SELECT id, topic, brief, persona, interval_hours, last_checked, last_run_uuid, last_status, last_changes, last_digest FROM watches ORDER BY id").fetchall()
+        rows = self._conn.execute("SELECT id, topic, brief, persona, interval_hours, last_checked, last_run_uuid, last_status, last_changes, last_digest, error_count FROM watches ORDER BY id").fetchall()
         return [{"id": r[0], "topic": r[1], "brief": r[2], "persona": r[3], "interval_hours": r[4],
                  "last_checked": r[5], "last_run_uuid": r[6], "last_status": r[7], "last_changes": r[8],
-                 "last_digest": r[9]}
+                 "last_digest": r[9], "error_count": r[10] or 0}
                 for r in rows]
 
     def set_watch_result(self, watch_id: int, status: str, run_uuid: str | None = None,
@@ -216,8 +216,9 @@ class Memory:
         self._conn.execute(
             "UPDATE watches SET last_status = ?, last_run_uuid = COALESCE(?, last_run_uuid), "
             "last_changes = COALESCE(?, last_changes), last_digest = COALESCE(?, last_digest), "
+            "error_count = CASE WHEN ? = 'error' THEN COALESCE(error_count, 0) + 1 ELSE 0 END, "
             "last_checked = ? WHERE id = ?",
-            (status, run_uuid, changes, digest, ts, watch_id),
+            (status, run_uuid, changes, digest, status, ts, watch_id),
         )
         self._conn.commit()
 

@@ -53,7 +53,9 @@ async def check_due_watches(memory: Memory, llm: TokenFactoryClient, tavily: Tav
     now = now or datetime.now(timezone.utc)
     for watch in memory.list_watches():
         last = _parse(watch.get("last_checked"))
-        due = last is None or now - last >= timedelta(hours=watch["interval_hours"])
+        # failing watches back off exponentially (deterministic, capped 16x) instead of burning a probe every cycle
+        backoff = 2 ** min(watch.get("error_count") or 0, 4)
+        due = last is None or now - last >= timedelta(hours=watch["interval_hours"] * backoff)
         if not due:
             continue
         try:

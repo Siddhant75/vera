@@ -211,3 +211,48 @@ async def test_budget_exhausted_marks_budget_limited(memory, monkeypatch):
 
 async def _async_true():
     return True
+
+
+async def test_watch_backoff_after_errors(memory):
+    from datetime import datetime, timedelta, timezone
+    memory.add_watch("Explain X", "Explain X", "engineer", interval_hours=1)
+    calls = {"n": 0}
+
+    async def failing_probe(memory_, tavily_, watch):
+        calls["n"] += 1
+        raise RuntimeError("probe down")
+
+    async def noop_emit(e):
+        pass
+
+    t0 = datetime(2026, 10, 30, 12, 0, 0, tzinfo=timezone.utc)
+    llm = FakeLLM()
+    await check_due_watches(memory, llm, FakeTavily(), emit=noop_emit, probe_fn=failing_probe, now=t0)
+    assert calls["n"] == 1
+    await check_due_watches(memory, llm, FakeTavily(), emit=noop_emit, probe_fn=failing_probe,
+                            now=t0 + timedelta(hours=1))
+    assert calls["n"] == 1  # backoff: error_count=1 → due at 2x interval, not 1h
+    await check_due_watches(memory, llm, FakeTavily(), emit=noop_emit, probe_fn=failing_probe,
+                            now=t0 + timedelta(hours=2))
+    assert calls["n"] == 2  # due again past the doubled window
+
+
+async def test_backoff_resets_on_success(memory):
+    from datetime import datetime, timedelta, timezone
+    memory.add_watch("Explain X", "Explain X", "engineer", interval_hours=6)
+    memory.save_run("Explain X", "engineer", "explain-x", {"sections": []}, run_uuid="old1")
+    memory.save_sources("old1", [{"url": "https://known.com/a", "title": "A"}])
+    memory.set_watch_result(memory.list_watches()[0]["id"], "error")  # seed one prior error
+    assert memory.list_watches()[0]["error_count"] == 1
+
+    async def noop_emit(e):
+        pass
+
+    t0 = datetime(2026, 10, 30, 12, 0, 0, tzinfo=timezone.utc)
+    tavily = FakeTavily({"Explain X": [{"url": "https://known.com/a", "title": "A", "content": "c"}]})
+    await check_due_watches(memory, FakeLLM(), tavily, emit=noop_emit, now=t0)  # no-change (but a run)
+    w = memory.list_watches()[0]
+    assert w["error_count"] == 0  # non-error outcome resets the backoff
+    # next due at plain 6h, not 12h
+    await check_due_watches(memory, FakeLLM(), tavily, emit=noop_emit, now=t0 + timedelta(hours=6))
+    assert memory.list_watches()[0]["last_checked"].startswith("2026-10-30T18:00")
