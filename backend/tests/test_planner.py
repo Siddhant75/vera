@@ -60,3 +60,15 @@ async def test_coverage_field_round_trip():
     p = await plan("Compare.\n- cost analysis", "founder", "k", PROFILE, None, llm, "m-planner")
     assert p.coverage == [{"requirement": "cost analysis", "sq_ids": ["q1"]}]
     assert "cost analysis" in str(llm.prompts[0])  # checklist in prompt
+
+
+async def test_plan_depth_classified():
+    llm = FakeLLM([{**SCHEMA_OK, "depth": "quick"}])
+    p = await plan("Is X still true?", "founder", "k", PROFILE, None, llm, "m-planner")
+    assert p.depth == "quick"
+
+
+async def test_plan_depth_missing_defaults_standard():
+    llm = FakeLLM([SCHEMA_OK])
+    p = await plan("Explain X", "founder", "k", PROFILE, None, llm, "m-planner")
+    assert p.depth == "standard"

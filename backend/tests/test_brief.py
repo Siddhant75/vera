@@ -28,3 +28,13 @@ def test_max_twelve():
 def test_strips_sub_point_indentation():
     brief = "- top\n  - sub point"
     assert parse_requirements(brief) == ["top", "sub point"]
+
+
+def test_clamp_depth():
+    from app.brief import clamp_depth
+    assert clamp_depth("quick", "plain prose brief") == "quick"
+    assert clamp_depth("banana", "plain prose") == "standard"   # unknown -> standard
+    assert clamp_depth("", "plain prose") == "standard"         # missing -> standard
+    bullets = "\n".join(f"- item {i}" for i in range(5))
+    assert clamp_depth("quick", bullets) == "standard"          # >=3 bullets: at least standard
+    assert clamp_depth("deep", "plain prose") == "deep"

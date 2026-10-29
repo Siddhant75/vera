@@ -13,6 +13,7 @@ class ResearchPlan(BaseModel):
     topic_key: str
     sub_questions: list[SubQuestion]
     coverage: list[dict] = Field(default_factory=list)  # {requirement, sq_ids}
+    depth: str = "standard"  # quick | standard | deep — planner classifies, brief.clamp_depth enforces
 
 
 class Source(BaseModel):

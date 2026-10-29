@@ -29,6 +29,7 @@ PLAN_SCHEMA = {
                 "required": ["requirement", "sq_ids"],
             },
         },
+        "depth": {"enum": ["quick", "standard", "deep"]},
     },
     "required": ["sub_questions"],
 }
@@ -67,7 +68,10 @@ async def plan(brief: str, persona: str, topic_key_in: str, profile: dict,
         + (f"\nAbout the user:\n{ctx}" if ctx else "")
         + "\nPhrase sub-questions for their expertise level and what they care about. "
           "At most 8 sub-questions. If the brief lists explicit bullet requirements, map every one "
-          "to sub-questions via the coverage field. Return JSON matching the schema."
+          "to sub-questions via the coverage field. Also classify the research depth: "
+          '"quick" = narrow factual lookup or yes/no update; "standard" = a decision or comparison '
+          'question; "deep" = multi-part or explicitly comprehensive research. '
+          "Return JSON matching the schema."
     )
     missed_note = ""
     if missed_requirements:
@@ -92,5 +96,7 @@ async def plan(brief: str, persona: str, topic_key_in: str, profile: dict,
     if missed_requirements is not None:
         subs = subs[:8]
     coverage = [c for c in data.get("coverage", []) if c.get("requirement")]
+    from app.brief import clamp_depth
+    depth = clamp_depth(data.get("depth", ""), brief)
     return ResearchPlan(brief=brief, persona=persona, topic_key=topic_key_in,
-                        sub_questions=subs, coverage=coverage)
+                        sub_questions=subs, coverage=coverage, depth=depth)

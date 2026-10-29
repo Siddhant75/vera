@@ -18,3 +18,13 @@ def parse_requirements(brief: str) -> list[str]:
         if len(out) >= 12:
             break
     return out
+
+
+def clamp_depth(depth: str, brief: str) -> str:
+    """Code owns the depth decision: the planner's classification is advisory.
+    Unknown/missing -> standard; >=3 explicit bullets can never be quick."""
+    if depth not in ("quick", "standard", "deep"):
+        depth = "standard"
+    if len(parse_requirements(brief)) >= 3 and depth == "quick":
+        depth = "standard"
+    return depth
