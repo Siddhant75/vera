@@ -31,6 +31,16 @@ cd frontend && npm install && npm run dev
 
 **Always-on in practice:** Vera never burns LLM tokens idling — the watcher probes each due topic with 1 Tavily search and only wakes the models when content actually changed; failing watches back off exponentially. A watch that produced a run shows up with a `watch` badge in the activity log.
 
+## 📋 How to Use Vera (60 seconds)
+
+1. **Run Research** — the sample brief is pre-filled; click once and watch the pipeline go: plan → search → draft → verify → report.
+2. **Make it yours** — set your persona (engineer/founder/analyst) and role context; every sub-question and the report voice adapt to you.
+3. **Give it private context** — add a note on the topic ("we're bound to k8s by a platform mandate"); it steers the research and the report tells you how many notes it considered — never what they said.
+4. **Prove it** — expand any claim badge: see each model's individual vote and the prosecutor's counter-evidence. Run the same topic again with **Run Delta** to get only what changed.
+5. **Automate it** — watch a topic; when the web changes, Vera re-researches and leaves a digest in the activity log (tagged `watch`). Skills (⚙ named recipes) run with one click, with template variables.
+
+**Bring your own keys:** copy `.env.example` → `.env`, add your [Nebius Token Factory](https://build.nebius.com/) + [Tavily](https://tavily.com/) keys, pick models (`PLANNER_MODEL`, `VERIFIER_MODELS`), run. The public demo runs on our keys under a hard budget; your instance runs on yours.
+
 ## 💡 The Problem & The Insight
 
 - Every open-source deep-research agent (gpt-researcher, smolagents, open_deep_research…) is **stateless**: same brief, same generic report, no memory of you or past research.
