@@ -70,6 +70,9 @@ class Memory:
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_SCHEMA)
+        cols = [r[1] for r in self._conn.execute("PRAGMA table_info(watches)").fetchall()]
+        if "last_digest" not in cols:  # legacy DBs: migrate in place
+            self._conn.execute("ALTER TABLE watches ADD COLUMN last_digest TEXT")
 
     def get_profile(self) -> dict:
         row = self._conn.execute("SELECT value FROM profile WHERE key='profile'").fetchone()
@@ -180,19 +183,22 @@ class Memory:
         self._conn.commit()
 
     def list_watches(self) -> list[dict]:
-        rows = self._conn.execute("SELECT id, topic, brief, persona, interval_hours, last_checked, last_run_uuid, last_status, last_changes FROM watches ORDER BY id").fetchall()
+        rows = self._conn.execute("SELECT id, topic, brief, persona, interval_hours, last_checked, last_run_uuid, last_status, last_changes, last_digest FROM watches ORDER BY id").fetchall()
         return [{"id": r[0], "topic": r[1], "brief": r[2], "persona": r[3], "interval_hours": r[4],
-                 "last_checked": r[5], "last_run_uuid": r[6], "last_status": r[7], "last_changes": r[8]}
+                 "last_checked": r[5], "last_run_uuid": r[6], "last_status": r[7], "last_changes": r[8],
+                 "last_digest": r[9]}
                 for r in rows]
 
     def set_watch_result(self, watch_id: int, status: str, run_uuid: str | None = None,
-                         changes: int | None = None, checked_at: str | None = None) -> None:
+                         changes: int | None = None, checked_at: str | None = None,
+                         digest: str | None = None) -> None:
         from datetime import datetime, timezone
         ts = checked_at or datetime.now(timezone.utc).isoformat(timespec="seconds")
         self._conn.execute(
             "UPDATE watches SET last_status = ?, last_run_uuid = COALESCE(?, last_run_uuid), "
-            "last_changes = COALESCE(?, last_changes), last_checked = ? WHERE id = ?",
-            (status, run_uuid, changes, ts, watch_id),
+            "last_changes = COALESCE(?, last_changes), last_digest = COALESCE(?, last_digest), "
+            "last_checked = ? WHERE id = ?",
+            (status, run_uuid, changes, digest, ts, watch_id),
         )
         self._conn.commit()
 

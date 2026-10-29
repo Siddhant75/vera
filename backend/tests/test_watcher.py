@@ -73,6 +73,29 @@ async def test_due_watch_triggers_delta_and_digest(memory):
     w = memory.list_watches()[0]
     assert w["last_status"] == "changed"
     assert w["last_run_uuid"] and w["last_run_uuid"] != "old1"
+    assert "Explain X" in (w["last_digest"] or "")
+
+
+def test_watch_digest_roundtrip(memory):
+    wid = memory.add_watch("k8s", "brief", "engineer")
+    memory.set_watch_result(wid, "changed", run_uuid="r1", changes=2,
+                            digest="Vera update on 'k8s': 2 changes - X; Y")
+    assert memory.list_watches()[0]["last_digest"] == "Vera update on 'k8s': 2 changes - X; Y"
+
+
+def test_memory_migrates_legacy_watches_table(tmp_path):
+    import sqlite3
+    p = str(tmp_path / "legacy.db")
+    c = sqlite3.connect(p)
+    c.execute("CREATE TABLE watches (id INTEGER PRIMARY KEY AUTOINCREMENT, topic TEXT, brief TEXT, "
+              "persona TEXT, interval_hours INTEGER, last_checked TEXT, last_run_uuid TEXT, "
+              "last_status TEXT, last_changes INTEGER)")
+    c.execute("INSERT INTO watches (topic, brief, persona, interval_hours) VALUES ('t','b','e',6)")
+    c.commit()
+    c.close()
+    m = Memory(p)
+    m.set_watch_result(1, "changed", digest="d")
+    assert m.list_watches()[0]["last_digest"] == "d"
 
 
 async def test_no_change_skips_llm(memory):

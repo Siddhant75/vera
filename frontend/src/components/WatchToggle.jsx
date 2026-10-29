@@ -36,6 +36,12 @@ export default function WatchToggle({ topic, brief, persona }) {
               </span>
               <span className="muted">every {w.interval_hours}h</span>
               <button type="button" onClick={async () => { await removeWatch(w.id); refresh(); }}>✕</button>
+              {w.last_digest && (
+                <details className="watch-digest">
+                  <summary>last digest</summary>
+                  <small>{w.last_digest}</small>
+                </details>
+              )}
             </div>
           ))}
           {topic && brief && (

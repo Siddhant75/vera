@@ -68,15 +68,16 @@ async def check_due_watches(memory: Memory, llm: TokenFactoryClient, tavily: Tav
         if report is None:
             memory.set_watch_result(watch["id"], "error", checked_at=now.isoformat(timespec="seconds"))
             continue  # run_research already emitted its own error event; retry next cycle
+        digest_text = f"Vera update on '{watch['topic']}': {len(report.changes)} changes — " \
+            + ("; ".join(report.changes[:8]) if report.changes else "fresh research run")
         memory.set_watch_result(watch["id"], "changed", run_uuid=_last_run(memory, watch),
-                                changes=len(report.changes), checked_at=now.isoformat(timespec="seconds"))
+                                changes=len(report.changes), checked_at=now.isoformat(timespec="seconds"),
+                                digest=digest_text)
         if webhook_url:
             try:
-                text = (f"Vera update on '{watch['topic']}': {len(report.changes)} changes — "
-                        + ("; ".join(report.changes[:8]) if report.changes else "fresh research run"))
-                await _post_digest(text, {"topic": watch["topic"], "changes": report.changes[:8],
-                                          "verdict_summary": report.verdict_summary,
-                                          "run_uuid": _last_run(memory, watch)}, webhook_url)
+                await _post_digest(digest_text, {"topic": watch["topic"], "changes": report.changes[:8],
+                                                 "verdict_summary": report.verdict_summary,
+                                                 "run_uuid": _last_run(memory, watch)}, webhook_url)
             except Exception as exc:
                 log.warning("webhook delivery failed for watch %s: %s", watch["id"], exc)
 
