@@ -47,13 +47,16 @@ class FeedbackIn(BaseModel):
 
 def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
                daily_token_budget: int = 0, watch_interval_minutes: int = 0,
-               digest_webhook_url: str = "") -> FastAPI:
+               digest_webhook_url: str = "", max_watches: int = 0) -> FastAPI:
     from contextlib import asynccontextmanager
 
     state = {"memory": memory, "llm": llm, "tavily": tavily,
              "daily_token_budget": daily_token_budget,
              "webhook_url": digest_webhook_url,
              "emit": None}
+
+    def watch_cap_hit() -> bool:
+        return max_watches and len(memory.list_watches()) >= max_watches
 
     async def _emit_any(event: dict):
         await bus.emit(event["run_id"], event)
@@ -189,6 +192,9 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
     async def post_watch(w: WatchIn):
         if not w.topic.strip() or not w.brief.strip():
             return JSONResponse(status_code=422, content={"error": "topic and brief required"})
+        if watch_cap_hit():
+            return JSONResponse(status_code=429, content={
+                "error": f"watch limit reached ({max_watches}) — self-host or use your own instance for more"})
         wid = memory.add_watch(w.topic.strip(), w.brief.strip(), w.persona, w.interval_hours)
         return {"id": wid}
 
@@ -275,9 +281,12 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         task.add_done_callback(app.state.background_tasks.discard)
         resp = {"run_id": skill_run_id}
         if s.watch:
-            wid = memory.add_watch(filled_topic or filled_brief[:40], filled_brief,
-                                   skill["persona"], s.interval_hours)
-            resp["watch_id"] = wid
+            if watch_cap_hit():
+                resp["watch_skipped"] = f"watch limit reached ({max_watches}) — run started, watch not created"
+            else:
+                wid = memory.add_watch(filled_topic or filled_brief[:40], filled_brief,
+                                       skill["persona"], s.interval_hours)
+                resp["watch_id"] = wid
         return resp
 
     return app
@@ -299,7 +308,8 @@ def build_app(settings: Settings | None = None) -> FastAPI:
     memory = Memory(settings.db_path)
     return create_app(llm, tavily, memory, daily_token_budget=settings.daily_token_budget,
                       watch_interval_minutes=settings.watch_interval_minutes,
-                      digest_webhook_url=settings.digest_webhook_url)
+                      digest_webhook_url=settings.digest_webhook_url,
+                      max_watches=settings.max_watches)
 
 
 try:

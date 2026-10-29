@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     db_path: str = "vera.db"
     daily_token_budget: int = 0  # 0 = unlimited; guards credits on hosted demos
     watch_interval_minutes: int = 0  # watcher cycle; 0 = off. Deployed default: 30
+    max_watches: int = 0  # 0 = unlimited; caps watch-slot farming on public demos
     digest_webhook_url: str = ""  # operator-set only (SSRF-safe); Slack/Discord/Zapier compatible
 
     @field_validator("verifier_models", mode="before")

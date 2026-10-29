@@ -207,3 +207,35 @@ async def test_provenance_not_spoofable(tmp_path):
         for task in list(app.state.background_tasks):
             await task
         assert memory.list_runs()[0]["source"] == "manual"  # client cannot forge provenance
+
+
+async def test_watch_cap_429(tmp_path):
+    memory = Memory(str(tmp_path / "t.db"))
+    from app.main import create_app as ca
+    app = ca(llm=FakeLLM(), tavily=FakeTavily(), memory=memory, max_watches=2)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        assert (await c.post("/api/watch", json={"topic": "t1", "brief": "b1"})).status_code == 200
+        assert (await c.post("/api/watch", json={"topic": "t2", "brief": "b2"})).status_code == 200
+        r = await c.post("/api/watch", json={"topic": "t3", "brief": "b3"})
+        assert r.status_code == 429
+        assert "watch limit" in r.json()["error"].lower()
+        assert len(memory.list_watches()) == 2
+
+
+async def test_skill_run_watch_skipped_at_cap(tmp_path):
+    memory = Memory(str(tmp_path / "t.db"))
+    memory.add_watch("existing", "b", "founder")
+    from app.main import create_app as ca
+    llm = FakeLLM([PLAN, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    app = ca(llm=llm, tavily=FakeTavily(SOURCES), memory=memory, max_watches=1)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        await c.post("/api/skills", json={"name": "s", "persona": "analyst", "brief_template": "Explain X",
+                                          "topic": "Explain X"})
+        r = await c.post("/api/skills/s/run", json={"watch": True})
+        assert r.status_code == 200
+        body = r.json()
+        assert body.get("run_id")  # run still starts
+        assert "watch limit" in body.get("watch_skipped", "").lower()
+        for task in list(app.state.background_tasks):
+            await task
+        assert len(memory.list_watches()) == 1  # no new watch row
