@@ -29,8 +29,16 @@ class TokenFactoryClient:
             )
 
     async def chat(self, model: str, messages: list[dict], max_tokens: int = 2000) -> str:
+        import asyncio
+
         payload: dict = {"model": model, "messages": messages, "max_tokens": max_tokens}
-        resp = await self._http.post("/chat/completions", json=payload)
+        resp = None
+        for attempt in range(3):  # 529/503 = transient platform overload: back off, don't die
+            resp = await self._http.post("/chat/completions", json=payload)
+            if resp.status_code in (529, 503) and attempt < 2:
+                await asyncio.sleep(2 * (attempt + 1))
+                continue
+            break
         if resp.status_code != 200:
             raise LLMError(f"token factory {resp.status_code}: {resp.text[:200]}")
         data = resp.json()

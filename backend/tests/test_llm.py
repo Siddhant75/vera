@@ -181,3 +181,30 @@ async def test_chat_json_survives_two_malformed():
         return out
 
     assert await _run() == {"ok": True}
+
+
+@pytest.mark.asyncio
+async def test_chat_retries_on_529_overloaded():
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(529, text='{"detail":"worker overloaded"}')
+        return httpx.Response(200, json=dict(CHAT_BODY, choices=[{"message": {"content": "ok"}}]))
+
+    c = _client(handler)
+    out = await c.chat("m1", [])
+    await c._http.aclose()
+    assert out == "ok"
+    assert calls["n"] == 2
+
+
+@pytest.mark.asyncio
+async def test_chat_529_exhausted_raises():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(529, text="overloaded")
+
+    c = _client(handler)
+    with pytest.raises(LLMError):
+        await c.chat("m1", [])
