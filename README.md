@@ -22,7 +22,7 @@ cd frontend && npm install && npm run dev
 
 ## 🚀 Deployment & Ops
 
-**One-click deploy:** this repo ships a [`render.yaml`](render.yaml) blueprint — Render dashboard → New → Blueprint → point at the repo → paste your keys. Backend (Python + uvicorn + persistent disk for SQLite) and frontend (static) deploy from one file; Render auto-deploys on every push. No Dockerfile needed for this stack; GitHub Actions unnecessary since Render builds on push.
+**One-click deploy:** this repo ships a [`render.yaml`](render.yaml) blueprint — Render dashboard → New → Blueprint → point at the repo → paste your keys. Backend (Python + uvicorn) and frontend (static) deploy from one file; Render auto-deploys on every push. No Dockerfile needed for this stack; GitHub Actions unnecessary since Render builds on push. Free-tier note: SQLite is ephemeral (memory resets on spin-down); add a paid disk + `DB_PATH=/var/data/vera.db` for persistence. (Render's API/CLI requires a card on file — the dashboard route does not.)
 
 **Public demo posture** (what's on/off on the deployed demo):
 - Watcher loop **off** (`WATCH_INTERVAL_MINUTES=0`) — watches can be created, edited, and viewed, but nothing runs automatically. Always-on is an operator choice: set the env to e.g. `30` on your own instance.

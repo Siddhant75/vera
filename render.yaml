@@ -9,13 +9,12 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/telemetry
-    disk:
-      name: vera-data
-      mountPath: /var/data
-      sizeGB: 1
+    # Free tier: no persistent disk (Render requires payment info for API-created services
+    # and for disks). SQLite is ephemeral on the free demo — memory resets on spin-down.
+    # Paid tier: add disk {name: vera-data, mountPath: /var/data, sizeGB: 1} + DB_PATH=/var/data/vera.db.
     envVars:
       - key: DB_PATH
-        value: /var/data/vera.db
+        value: /tmp/vera.db
       # Demo cost posture (session verdict 2026-10-30): watcher loop off, watch cap, token ceiling.
       - key: WATCH_INTERVAL_MINUTES
         value: "0" # always-on is an operator choice: set e.g. 30 to enable the watcher loop
