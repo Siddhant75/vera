@@ -44,12 +44,13 @@ class FeedbackIn(BaseModel):
 
 
 def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
-               daily_token_budget: int = 0, watch_interval_minutes: int = 0) -> FastAPI:
+               daily_token_budget: int = 0, watch_interval_minutes: int = 0,
+               digest_webhook_url: str = "") -> FastAPI:
     from contextlib import asynccontextmanager
 
     state = {"memory": memory, "llm": llm, "tavily": tavily,
              "daily_token_budget": daily_token_budget,
-             "webhook_url": Settings().digest_webhook_url,
+             "webhook_url": digest_webhook_url,
              "emit": None}
 
     async def _emit_any(event: dict):
@@ -63,9 +64,14 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         if watch_interval_minutes > 0:  # 0 = watcher off (tests, local dev)
             from app.watcher import watch_loop
             task = asyncio.create_task(watch_loop(state, watch_interval_minutes))
+        _app.state.watch_task = task
         yield
         if task:
             task.cancel()
+            try:
+                await task  # graceful: never kill the loop mid-write
+            except asyncio.CancelledError:
+                pass
 
     app = FastAPI(title="Vera", lifespan=lifespan)
     app.add_middleware(
@@ -260,7 +266,8 @@ def build_app(settings: Settings | None = None) -> FastAPI:
     tavily = TavilyClient(settings.tavily_api_key)
     memory = Memory(settings.db_path)
     return create_app(llm, tavily, memory, daily_token_budget=settings.daily_token_budget,
-                      watch_interval_minutes=settings.watch_interval_minutes)
+                      watch_interval_minutes=settings.watch_interval_minutes,
+                      digest_webhook_url=settings.digest_webhook_url)
 
 
 try:

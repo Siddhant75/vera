@@ -87,6 +87,48 @@ async def test_background_task_registered(tmp_path):
         assert len(app.state.background_tasks) >= 1
 
 
+def _sentinel_loop(seen):
+    async def loop(state, interval_minutes=30):
+        try:
+            while True:
+                await asyncio.sleep(0.05)
+        except asyncio.CancelledError:
+            seen["cancelled"] = True
+            raise
+    return loop
+
+
+def test_shutdown_awaits_watch_task(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    import app.watcher as W
+    seen = {"cancelled": False}
+    monkeypatch.setattr(W, "watch_loop", _sentinel_loop(seen))
+    app = create_app(llm=FakeLLM(), tavily=FakeTavily(), memory=Memory(str(tmp_path / "t.db")),
+                     watch_interval_minutes=1)
+    with TestClient(app):
+        pass
+    assert seen["cancelled"] is True  # cancellation observed, not just requested
+    assert app.state.watch_task.cancelled() is True  # awaited to completion before shutdown
+
+
+def test_digest_webhook_url_injected(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    import app.watcher as W
+    captured = {}
+
+    async def spy_loop(state, interval_minutes=30):
+        captured["webhook_url"] = state.get("webhook_url")
+        while True:
+            await asyncio.sleep(0.05)
+
+    monkeypatch.setattr(W, "watch_loop", spy_loop)
+    app = create_app(llm=FakeLLM(), tavily=FakeTavily(), memory=Memory(str(tmp_path / "t.db")),
+                     watch_interval_minutes=1, digest_webhook_url="http://x.local/hook")
+    with TestClient(app):
+        pass
+    assert captured["webhook_url"] == "http://x.local/hook"
+
+
 async def test_error_run_reports_failed_stage(tmp_path):
     llm = FakeLLM([PLAN, ValueError("boom")], planner_model="m-p", verifier_models=["m-v"])
     app, _ = make_app(tmp_path, llm, FakeTavily(SOURCES))
