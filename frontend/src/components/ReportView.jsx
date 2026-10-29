@@ -37,6 +37,27 @@ function ClaimRow({ runId, claim, proof }) {
         <div className="claim-proof">
           <strong>Verification proof</strong>
           <p>{proof.reason}</p>
+          {proof.votes?.length > 0 && (
+            <div className="claim-votes">
+              <strong>Model votes (final round):</strong>
+              <ul>
+                {proof.votes.map((v, i) => (
+                  <li key={i}>
+                    <span className={`badge ${v.verdict === "supported" ? "green" : v.verdict === "contradicted" ? "red" : "yellow"}`}>
+                      {v.verdict}
+                    </span>{" "}
+                    {v.model?.split("/").pop()} — {v.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {proof.prosecution && (
+            <div className="claim-prosecution">
+              <strong>⚖️ Prosecutor's counter-evidence hunt:</strong>
+              <p>{proof.prosecution}</p>
+            </div>
+          )}
           <small>
             {proof.web_checked
               ? "⚖️ Models disagreed → Tavily live-web re-check performed"
