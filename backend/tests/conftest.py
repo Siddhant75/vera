@@ -52,6 +52,7 @@ class FakeTavily:
 
     def __init__(self, results=None, extract_results=None):
         self.queries: list[str] = []
+        self.roles: list[str] = []
         self.kwargs: list[dict] = []
         self.results: dict[str, list[dict]] = dict(results or {})
         self.extract_calls: list = []
@@ -59,6 +60,7 @@ class FakeTavily:
 
     async def search(self, query, max_results=5, role="grounding", **kw):
         self.queries.append(query)
+        self.roles.append(role)
         self.kwargs.append(kw)
         return self.results.get(query, [])
 

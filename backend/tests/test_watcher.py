@@ -87,6 +87,18 @@ async def test_first_watch_no_history_runs(memory):
     assert await probe_changed(memory, tavily, watch) is True
 
 
+async def test_probe_time_ranged_and_role(memory):
+    from app import telemetry
+    memory.add_watch("k8s choice", "Brief", "founder")
+    memory.save_run("Brief", "founder", "k8s-choice", {"sections": []}, run_uuid="old1")
+    memory.save_sources("old1", [{"url": "https://known.com/a", "title": "A"}])
+    tavily = FakeTavily({"k8s choice": [{"url": "https://known.com/a", "title": "A", "content": "c"}]})
+    watch = memory.list_watches()[0]
+    await probe_changed(memory, tavily, watch)
+    assert tavily.kwargs[-1].get("time_range") == "week"  # old-indexed pages are not news
+    assert tavily.roles[-1] == "probe"
+
+
 async def test_due_watch_triggers_delta_and_digest(memory):
     memory.add_watch("Explain X", "Explain X", "engineer", interval_hours=1)
     # seed a prior run so probe sees "changed" via new URL
