@@ -20,11 +20,13 @@ export default function App() {
   const [report, setReport] = useState(null);
   const [runSummary, setRunSummary] = useState(null);
   const [running, setRunning] = useState(false);
+  const [runError, setRunError] = useState(null);
 
   const runByName = async (skillName, vars = {}, watch = false) => {
     setEvents([]);
     setReport(null);
     setRunSummary(null);
+    setRunError(null);
     setRunning(true);
     try {
       const runId = await runSkillV2(skillName, vars, watch);
@@ -38,8 +40,9 @@ export default function App() {
           setRunning(false);
         }
       });
-    } catch {
+    } catch (e) {
       setRunning(false);
+      setRunError(e.message || "skill run failed");
     }
   };
 
@@ -47,6 +50,7 @@ export default function App() {
     setEvents([]);
     setReport(null);
     setRunSummary(null);
+    setRunError(null);
     setRunning(true);
     try {
       const runId = await runResearch({ brief, topic, persona, delta });
@@ -60,8 +64,9 @@ export default function App() {
           setRunning(false);
         }
       });
-    } catch {
+    } catch (e) {
       setRunning(false);
+      setRunError(e.message || "research run failed");
     }
   };
 
@@ -95,6 +100,7 @@ export default function App() {
             Run Delta (what changed)
           </button>
         </div>
+        {runError && <p className="run-error" role="alert">{runError}</p>}
         <WatchToggle topic={topic} brief={brief} persona={persona} />
         <SkillsPanel current={{ persona, brief, topic, excluded_sources: [] }} onRun={runByName} />
         <NotesPanel topic={topic} />

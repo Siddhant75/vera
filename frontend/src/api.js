@@ -12,13 +12,19 @@ export async function saveProfile(p) {
   })).json();
 }
 
+async function requestJson(r) {
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || `request failed (${r.status})`);
+  return data;
+}
+
 export async function runResearch({ brief, topic, persona, delta }) {
   const r = await fetch(`${BASE}/api/research`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ brief, topic: topic || "", persona: persona || "", delta: !!delta }),
   });
-  return (await r.json()).run_id;
+  return (await requestJson(r)).run_id;
 }
 
 export function openEventStream(runId, onEvent) {
@@ -82,7 +88,7 @@ export async function runSkillV2(name, vars = {}, watch = false) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ vars, watch }),
   });
-  return (await r.json()).run_id;
+  return (await requestJson(r)).run_id;
 }
 
 export async function addNote(topic, content) {

@@ -173,6 +173,7 @@ footer { margin-top: 32px; color: var(--muted); text-align: center; }
 .profile-panel label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
 
 .run-summary { margin-top: 8px; color: var(--muted); font-size: 13px; padding: 6px 4px; }
+.run-error { color: var(--red); font-size: 13px; margin: 6px 0 0; }
 .unused-sources { list-style: none; padding: 0; margin: 8px 0 0; font-size: 13px; }
 .unused-sources a { color: var(--accent); text-decoration: none; }
 .muted { color: var(--muted); font-size: 12px; }
