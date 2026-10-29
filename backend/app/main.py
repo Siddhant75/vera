@@ -34,6 +34,8 @@ class ResearchIn(BaseModel):
     topic: str = ""
     persona: str = ""
     delta: bool = False
+    trusted_sources: list[str] | None = None  # per-run override: skills pass these; profile untouched
+    excluded_sources: list[str] | None = None
 
 
 class FeedbackIn(BaseModel):
@@ -103,7 +105,11 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
             await bus.emit(run_id, event)
 
         task = asyncio.create_task(run_research(run_id, r.brief, r.persona, r.topic, r.delta,
-                                                llm, tavily, memory, emit))
+                                                llm, tavily, memory, emit,
+                                                domain_prefs={"trusted": r.trusted_sources or [],
+                                                              "excluded": r.excluded_sources or []}
+                                                if r.trusted_sources is not None
+                                                or r.excluded_sources is not None else None))
         app.state.background_tasks.add(task)
         task.add_done_callback(app.state.background_tasks.discard)
         return {"run_id": run_id}
@@ -233,12 +239,11 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         from app.skills import auto_vars, fill_template
         filled_brief = fill_template(skill["brief_template"], s.vars, auto_vars(skill["topic"]))
         filled_topic = skill["topic"] or s.vars.get("topic", "")
-        prev = memory.get_profile()
-        memory.set_profile(skill["persona"], skill["trusted_sources"], skill["excluded_sources"],
-                           role_context=prev.get("role_context", ""), goals=prev.get("goals", ""),
-                           expertise_notes=prev.get("expertise_notes", ""))
+        # no profile swap: skill persona + source prefs are per-run overrides — stored profile untouched
         run_resp = await post_research(ResearchIn(brief=filled_brief, topic=filled_topic,
-                                                  persona=skill["persona"]))
+                                                  persona=skill["persona"],
+                                                  trusted_sources=skill["trusted_sources"],
+                                                  excluded_sources=skill["excluded_sources"]))
         if isinstance(run_resp, JSONResponse):
             return run_resp  # budget guard 429 etc — pass through untouched
         resp = dict(run_resp)

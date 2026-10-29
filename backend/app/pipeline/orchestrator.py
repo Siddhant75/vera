@@ -18,7 +18,7 @@ def resolve_topic_key(topic: str, brief: str) -> str:
 
 async def run_research(run_id: str, brief: str, persona: str, topic: str, delta: bool,
                        llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
-                       emit) -> dict:
+                       emit, domain_prefs: dict | None = None) -> dict:
     stage = {"current": "planning"}
     from app.telemetry import telemetry as _tel
     t_start = _tel.snapshot()
@@ -75,8 +75,8 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
         search_plan = p.model_copy(update={"sub_questions": fresh_subs})
         from app.budget import SearchBudget
         from app.memory import clean_domains
-        domain_prefs = {"trusted": clean_domains(profile.get("trusted_sources", [])),
-                        "excluded": clean_domains(profile.get("excluded_sources", []))}
+        domain_prefs = domain_prefs or {"trusted": clean_domains(profile.get("trusted_sources", [])),
+                                        "excluded": clean_domains(profile.get("excluded_sources", []))}
         budget = SearchBudget(budget_for_brief(brief))
         sources = await search_sources(search_plan, tavily, memory.trust_multiplier, budget=budget,
                                        gate=gate, domain_prefs=domain_prefs)
