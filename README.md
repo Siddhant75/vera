@@ -11,7 +11,9 @@
 
 ```bash
 # backend
-cd backend && python -m venv .venv && .venv\Scripts\activate
+cd backend && python -m venv .venv
+.venv\Scripts\activate          # Windows
+source .venv/bin/activate       # macOS / Linux
 pip install -r requirements.txt
 # put TOKEN_FACTORY_API_KEY + TAVILY_API_KEY in ../.env (see .env.example)
 uvicorn app.main:app --reload
@@ -70,10 +72,13 @@ brief → Planner → Searcher → Drafter → Verifier → Synthesizer → repo
    user profile + memory (SQLite)         Tavily web re-check on disagreement
 ```
 
-- `backend/app/` — FastAPI; one async stage function per pipeline stage (`app/pipeline/`); clients injected and faked in tests (51 passing).
-- `backend/app/memory.py` — SQLite: profile, runs, verdicts, feedback, topic-keyed reports (delta mode).
-- `frontend/src/` — Vite React; SSE live pipeline view, persona toggle, per-claim feedback, telemetry panel.
-- Tests: `cd backend && python -m pytest tests/ -v`
+- `backend/app/` — FastAPI; one async stage function per pipeline stage (`app/pipeline/`); clients injected and faked in tests (**178 passing**).
+- `backend/app/memory.py` — SQLite: profile, runs (with provenance: manual/delta/skill/watch), verdicts, feedback, topic-keyed reports (delta mode), watches, notes, skills.
+- `backend/app/budget.py` + `brief.py` — deterministic search budget (`min(12 + 2×requirements, 40)`, priority-ordered: searcher → prosecutor → re-check → extract) and bullet-requirement parsing with a planner coverage gate ("Not investigated" section instead of silent drops).
+- `backend/app/privacy.py` — deterministic privacy gate at every Tavily dispatch site (4-gram + distinctive-token rules); secrets scan warns at note save.
+- `backend/app/watcher.py` — always-on loop: probe-gated (1 Tavily search), exponential backoff on failures, digests in-app + webhook.
+- `backend/app/skills.py` — reusable recipes with template variables (`{topic}`, `{date}`, `{quarter}` + custom).
+- `frontend/src/` — Vite React; SSE live pipeline view, persona toggle, per-claim proof expansion, telemetry panel, memory/activity panel.
 
 ## Track
 
@@ -87,6 +92,20 @@ Vera stores everything locally (SQLite, no accounts, no sync). Private notes att
 - **Secrets are warned at save-time, never silently accepted or blocked** — Vera scans for API-key/password/private-key/card-number patterns and tells you loudly.
 
 **Never paste into notes:** passwords, API keys, account numbers, medical records — anything you wouldn't tell a cloud service. Notes live on your machine, but their context is processed by Nebius Token Factory during research. Purge everything anytime from the app ("What Vera remembers" → delete).
+
+## 🔥 Challenges & Accomplishments
+
+- **Structured output garbled** on Token Factory's Nemotron reasoning models (`response_format=json_schema` returned `{"sub_questions":[{"id":", ","text":""}]}`) — so all structured calls use schema-in-prompt + brace extraction, with retries. Lesson: the hackathon's sponsor constraint forced us off conveniences everyone else relies on.
+- **Verifier greed**: the first live run drafted 84 claims — we made caps deterministic code (5 claims/sub-question, budgeted searches, evidence caps), not prompt hopes. Measured: 45→16 searches, 411K→120K tokens (−71%) with better verdict spread.
+- **The moat is the constraint**: single-model APIs can't do adversarial multi-model verification. What the rules forbid (one model) is exactly what makes Vera's core work — the sponsor constraint IS the engine.
+- **Privacy is code, not prompts**: a deterministic gate sits at every Tavily dispatch site; honestly scoped (verbatim text + short echoes blocked; paraphrases may evade) and documented.
+
+## 🔭 What's Next
+
+- Persistent hosted memory (managed disk or volume) — demo runs on free ephemeral storage today
+- Watch run history timeline per topic; skill-linked watches that re-fill template vars each cycle
+- Export verified reports (PDF/Markdown) with full proof chains
+- Multi-user auth on top of the existing memory-control layer
 
 ## License
 
