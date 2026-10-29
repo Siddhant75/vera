@@ -71,8 +71,24 @@ function ClaimRow({ runId, claim, proof }) {
 
 export default function ReportView({ runId, report }) {
   if (!report || report.error) return null;
+  const summary = report.verdict_summary || {};
   return (
     <div className="report">
+      <div className="report-meta">
+        <span className={`badge ${report.depth === "quick" ? "yellow" : report.depth === "deep" ? "" : "green"}`}>
+          {report.depth || "standard"} research
+        </span>
+        {report.persona && <span className="muted">for a {report.persona}</span>}
+      </div>
+      {Object.keys(summary).length > 0 && (
+        <div className="verdict-strip">
+          {Object.entries(summary).map(([k, n]) => (
+            <span key={k} className={`badge ${k === "supported" ? "green" : k === "contradicted" ? "red" : "yellow"}`}>
+              {n} {k}
+            </span>
+          ))}
+        </div>
+      )}
       {report.changes?.length > 0 && (
         <div className="delta-box">
           <strong>What changed since your last research:</strong>
@@ -100,6 +116,16 @@ export default function ReportView({ runId, report }) {
         <section>
           <h3>Open questions</h3>
           <ul>{report.open_questions.map((q, i) => <li key={i}>{q}</li>)}</ul>
+        </section>
+      )}
+      {report.sources_cited?.length > 0 && (
+        <section>
+          <h3>Sources cited</h3>
+          <ul className="unused-sources">
+            {report.sources_cited.map((s, i) => (
+              <li key={i}><a href={s.url} target="_blank" rel="noreferrer">{s.title || s.url}</a></li>
+            ))}
+          </ul>
         </section>
       )}
       {report.sources_unused?.length > 0 && (

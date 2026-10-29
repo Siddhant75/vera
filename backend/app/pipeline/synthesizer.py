@@ -97,6 +97,8 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
             "verdict": v.verdict, "reason": v.reason, "web_checked": v.web_checked,
             "votes": v.votes, "prosecution": v.prosecution,
         }
+    title_by_url = {s.url: s.title for s in sources}
+    sources_cited = [{"url": u, "title": title_by_url.get(u, u)} for u in sorted(cited_urls)]
 
     return ResearchReport(
         brief=brief, persona=persona, topic_key=topic_key_in,
@@ -105,6 +107,7 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
             {"url": s.url, "title": s.title} for s in sources
             if s.url not in cited_urls
         ][:30],
+        sources_cited=sources_cited,
         verdict_summary=summary, claim_verdicts=claim_verdicts,
         claim_proofs=claim_proofs, changes=changes, notes_considered=notes_count, depth=depth,
     )
