@@ -227,3 +227,25 @@ async def test_chat_json_handles_fenced_and_prefixed_prose():
         return out
 
     assert await _run() == {"ok": True}  # fenced JSON wins over the brace-bearing prose prefix
+
+
+@pytest.mark.asyncio
+async def test_chat_json_escalates_tokens_when_starved():
+    # reasoning models can burn the whole budget on hidden reasoning -> content=""
+    # retry must ESCALATE max_tokens, not repeat the same starving call
+    seen = []
+
+    async def _run():
+        def handler(request: httpx.Request) -> httpx.Response:
+            import json as _j
+            seen.append(_j.loads(request.read())["max_tokens"])
+            content = "" if len(seen) == 1 else "{\"ok\": true}"
+            return httpx.Response(200, json=dict(CHAT_BODY, choices=[{"message": {"content": content}}]))
+
+        c = _client(handler)
+        out = await c.chat_json("m1", [], {"type": "object"}, max_tokens=1000)
+        await c._http.aclose()
+        return out
+
+    assert await _run() == {"ok": True}
+    assert seen == [1000, 2000]  # second attempt doubled the budget

@@ -57,12 +57,14 @@ class TokenFactoryClient:
         }
         messages = [*messages, schema_note]
         last = ""
+        budget = max_tokens
         for _attempt in range(3):
-            content = await self.chat(model, messages, max_tokens=max_tokens)
+            content = await self.chat(model, messages, max_tokens=budget)
             # fenced blocks first (```json ... ```) — prose prefixes may carry stray braces
             fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL)
             candidates = [fenced.group(1)] if fenced else []
             candidates.append(content)  # fallback: first-{ to last-} over the whole text
+            parsed = None
             for candidate in candidates:
                 try:
                     start, end = candidate.find("{"), candidate.rfind("}")
@@ -74,6 +76,7 @@ class TokenFactoryClient:
                 if isinstance(parsed, dict):
                     return parsed
             last = content
+            budget *= 2  # reasoning models can eat the budget on hidden thinking: escalate, don't repeat
         raise LLMError(f"model returned malformed JSON three times — last content: {last[:300]!r}")
 
     async def list_models(self) -> list[str]:
