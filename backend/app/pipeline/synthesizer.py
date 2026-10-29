@@ -91,6 +91,7 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
         claim_verdicts[v.claim_id] = v.verdict
         claim_proofs[v.claim_id] = {
             "verdict": v.verdict, "reason": v.reason, "web_checked": v.web_checked,
+            "votes": v.votes, "prosecution": v.prosecution,
         }
 
     return ResearchReport(

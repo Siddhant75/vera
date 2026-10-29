@@ -36,6 +36,8 @@ class Verdict(BaseModel):
     reason: str
     model: str
     web_checked: bool = False
+    votes: list[dict] = Field(default_factory=list)  # final round: {model, verdict, reason} per verifier model
+    prosecution: str = ""  # prosecutor's counter-evidence text, capped 800 chars
 
 
 class ReportSection(BaseModel):

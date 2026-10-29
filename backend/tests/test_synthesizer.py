@@ -66,7 +66,18 @@ async def test_zero_claim_subquestion_notes_gap():
 async def test_claim_proofs_surfaced():
     llm = FakeLLM([NARR_OK])
     report = await synthesize("b", "founder", "k", PLAN, [CLAIM], VERDICTS, [SOURCE], None, llm, "m-syn")
-    assert report.claim_proofs == {"c1": {"verdict": "disputed", "reason": "split", "web_checked": False}}
+    assert report.claim_proofs == {"c1": {"verdict": "disputed", "reason": "split", "web_checked": False,
+                                          "votes": [], "prosecution": ""}}
+
+
+async def test_claim_proofs_include_votes_and_prosecution():
+    v = Verdict(claim_id="c1", verdict="disputed", reason="split", model="mA,mB",
+                votes=[{"model": "m1", "verdict": "supported", "reason": "r"}], prosecution="counter text")
+    llm = FakeLLM([NARR_OK])
+    report = await synthesize("b", "founder", "k", PLAN, [CLAIM], [v], [SOURCE], None, llm, "m-syn")
+    proof = report.claim_proofs["c1"]
+    assert proof["votes"] == [{"model": "m1", "verdict": "supported", "reason": "r"}]
+    assert proof["prosecution"] == "counter text"
 
 
 CITED = Claim(id="c1", sub_question_id="q1", text="X", citation_urls=["https://a.com/1"])

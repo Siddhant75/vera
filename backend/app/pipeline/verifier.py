@@ -120,6 +120,9 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
                     reason="; ".join(f"{m}: {r.get('reason', '')}" for m, r in zip(models, round1))
                            + " [budget-limited: web re-check skipped]",
                     model=",".join(models), web_checked=False,
+                    votes=[{"model": m, "verdict": r.get("verdict", ""), "reason": r.get("reason", "")}
+                           for m, r in zip(models, round1)],
+                    prosecution=prosecution[:800],
                 )
             web = await tavily.search(gate(claim.text) if gate else claim.text, role="recheck")
             web_srcs = _web_sources(web, claim.sub_question_id, trust_fn)
@@ -132,6 +135,9 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
             reason="; ".join(f"{m}: {r.get('reason', '')}" for m, r in zip(models, round1)),
             model=",".join(models),
             web_checked=web_checked,
+            votes=[{"model": m, "verdict": r.get("verdict", ""), "reason": r.get("reason", "")}
+                   for m, r in zip(models, round1)],
+            prosecution=prosecution[:800],
         )
 
     by_q: dict[str, list[Source]] = {}

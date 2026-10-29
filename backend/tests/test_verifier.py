@@ -141,7 +141,7 @@ async def test_prosecutor_skips_search_when_budget_out():
     llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP], "mB": [SUP]})
     b = SearchBudget(0)
     out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, FakeTavily(), budget=b)
-    assert out[0].verdict == "supported"  # vote unaffected — refutation search optional
+    assert out[0].verdict == "supported"  # vote unaffected - refutation search optional
     assert "budget-limited" not in out[0].reason
 
 
@@ -162,3 +162,27 @@ async def test_evidence_capped_8_sources_800_chars():
     vote_prompt = str(llm.prompts[1])
     assert vote_prompt.count("https://a.com/") <= 8
     assert "y" * 801 not in vote_prompt
+
+
+async def test_verdict_carries_votes_and_prosecution():
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP, SUP], "mB": [CON, CON]})
+    tavily = FakeTavily({"X is wrong": [{"url": "https://w.com/x", "title": "W", "content": "web evidence"}]})
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
+    v0 = out[0]
+    assert v0.votes == [
+        {"model": "mA", "verdict": "supported", "reason": "evidence says so"},
+        {"model": "mB", "verdict": "contradicted", "reason": "evidence says no"},
+    ]  # final deciding round (post-recheck)
+    assert "PROSECUTOR SUSPICIONS: costs may be hidden" in v0.prosecution
+    assert "REFUTATION EVIDENCE" in v0.prosecution
+
+
+async def test_budget_limited_verdict_carries_round1_votes():
+    from app.budget import SearchBudget
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE_CLEAN, SUP], "mB": [UNC]})
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, FakeTavily(), budget=SearchBudget(0))
+    assert out[0].votes == [
+        {"model": "mA", "verdict": "supported", "reason": "evidence says so"},
+        {"model": "mB", "verdict": "uncertain", "reason": "unclear"},
+    ]
+    assert out[0].prosecution == ""
