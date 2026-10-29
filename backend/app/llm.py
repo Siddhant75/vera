@@ -56,6 +56,7 @@ class TokenFactoryClient:
             "content": f"Respond with ONLY JSON matching this schema: {json.dumps(schema)}",
         }
         messages = [*messages, schema_note]
+        last = ""
         for _attempt in range(3):
             content = await self.chat(model, messages, max_tokens=max_tokens)
             # fenced blocks first (```json ... ```) — prose prefixes may carry stray braces
@@ -72,7 +73,8 @@ class TokenFactoryClient:
                     continue
                 if isinstance(parsed, dict):
                     return parsed
-        raise LLMError("model returned malformed JSON three times")
+            last = content
+        raise LLMError(f"model returned malformed JSON three times — last content: {last[:300]!r}")
 
     async def list_models(self) -> list[str]:
         resp = await self._http.get("/models")
