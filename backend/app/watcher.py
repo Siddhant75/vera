@@ -28,7 +28,8 @@ async def probe_changed(memory: Memory, tavily: TavilyClient, watch: dict) -> bo
     if not last_uuid:
         return True
     results = await tavily.search(watch["topic"], max_results=5, role="probe",
-                                  time_range="week")  # old-indexed pages are not news
+                                  time_range="week" if watch["interval_hours"] <= 168 else None)
+    # ^ a week window on a longer interval would make the probe blind to the gap — all-time fallback
     results = [r for r in results
                if memory.trust_multiplier(domain_of(r["url"])) > 0.0]  # same trust semantics as searcher/verifier
     known = {s["url"] for s in memory.get_sources(last_uuid)}

@@ -247,3 +247,44 @@ async def test_recheck_extract_skipped_when_budget_out():
     out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily, budget=SearchBudget(0))
     assert not tavily.extract_calls
     assert "budget-limited" in out[0].reason
+
+
+async def test_prosecution_search_failure_degrades():
+    from app.search import SearchError
+
+    class FailTavily(FakeTavily):
+        async def search(self, query, max_results=5, role="grounding", **kw):
+            raise SearchError("tavily down")
+
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP], "mB": [SUP]})
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, FailTavily())
+    assert out[0].verdict == "supported"  # a Tavily blip never kills the run at verify
+
+
+async def test_community_search_failure_silent():
+    from app.search import SearchError
+
+    class CommunityFailTavily(FakeTavily):
+        async def search(self, query, max_results=5, role="grounding", **kw):
+            if kw.get("include_domains") == ["reddit.com"]:
+                raise SearchError("reddit hunt down")
+            return [{"url": "https://allowed.com/r", "title": "R", "content": "refuting"}]
+
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP], "mB": [SUP]})
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, CommunityFailTavily())
+    assert out[0].verdict == "supported"
+    assert "COMMUNITY EVIDENCE" not in str(llm.prompts[1:])
+
+
+async def test_recheck_extract_transport_failure_degrades():
+    import httpx
+
+    class TransportFailTavily(FakeTavily):
+        async def extract(self, urls, query=None, extract_depth="basic"):
+            raise httpx.ReadTimeout("extract timed out")
+
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE_CLEAN, SUP, SUP], "mB": [CON, CON]})
+    tavily = TransportFailTavily({"X is true": [{"url": "https://w.com/x", "title": "W", "content": "web evidence"}]})
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
+    assert out[0].web_checked is True  # re-check proceeded snippet-only
+    assert out[0].verdict == "contradicted"

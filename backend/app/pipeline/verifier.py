@@ -102,14 +102,20 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
             parts.append(f"PROSECUTOR SUSPICIONS: {out['suspicions']}")
         query = out.get("refutation_query")
         if query and (budget is None or budget.try_consume()):
-            web = await tavily.search(gate(query) if gate else query, role="prosecution",
-                                      exclude_domains=excluded)
+            try:
+                web = await tavily.search(gate(query) if gate else query, role="prosecution",
+                                          exclude_domains=excluded)
+            except Exception:
+                web = []  # a Tavily blip never kills the run at verify; suspicion note still reaches voters
             for w in _web_sources(web, claim.sub_question_id, trust_fn):
                 parts.append(f"REFUTATION EVIDENCE ({w.url}): {w.title} - {w.content[:800]}")
             # community prosecution: practitioner counter-evidence is a different evidence class
             if budget is None or budget.try_consume():
-                community = await tavily.search(gate(query) if gate else query, role="prosecution",
-                                                include_domains=["reddit.com"], exclude_domains=excluded)
+                try:
+                    community = await tavily.search(gate(query) if gate else query, role="prosecution",
+                                                    include_domains=["reddit.com"], exclude_domains=excluded)
+                except Exception:
+                    community = []  # silently absent — verdict path unchanged
                 for w in _web_sources(community, claim.sub_question_id, trust_fn):
                     parts.append(f"COMMUNITY EVIDENCE ({w.url}): {w.title} - {w.content[:500]}")
         elif query:
@@ -143,11 +149,11 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
                 try:
                     extracted = await tavily.extract(claim.citation_urls[:20],
                                                      query=gate(claim.text) if gate else claim.text)
-                    pages = "\n\n".join(f"FULL PAGE ({e['url']}): {e['content'][:800]}" for e in extracted)
+                    pages = "\n\n".join(f"FULL PAGE ({e['url']}): {(e['content'] or '')[:800]}" for e in extracted)
                     if pages:
                         evidence += f"\n\n{pages}"
-                except SearchError:
-                    pass  # degrade to snippet re-check, visibly still web_checked
+                except Exception:
+                    pass  # transport blip, null body, anything: degrade to snippet re-check, visibly still web_checked
             round1 = await asyncio.gather(*(_ask(m, claim, evidence) for m in models))
             web_checked = True
         return Verdict(
