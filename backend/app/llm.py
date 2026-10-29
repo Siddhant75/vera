@@ -1,4 +1,5 @@
 import json
+import re
 
 import httpx
 
@@ -57,15 +58,20 @@ class TokenFactoryClient:
         messages = [*messages, schema_note]
         for _attempt in range(3):
             content = await self.chat(model, messages, max_tokens=max_tokens)
-            try:
-                start, end = content.find("{"), content.rfind("}")
-                if start == -1 or end <= start:
-                    raise json.JSONDecodeError("no object", content, 0)
-                parsed = json.loads(content[start:end + 1])
-            except (json.JSONDecodeError, TypeError):
-                continue
-            if isinstance(parsed, dict):
-                return parsed
+            # fenced blocks first (```json ... ```) — prose prefixes may carry stray braces
+            fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL)
+            candidates = [fenced.group(1)] if fenced else []
+            candidates.append(content)  # fallback: first-{ to last-} over the whole text
+            for candidate in candidates:
+                try:
+                    start, end = candidate.find("{"), candidate.rfind("}")
+                    if start == -1 or end <= start:
+                        raise json.JSONDecodeError("no object", candidate, 0)
+                    parsed = json.loads(candidate[start:end + 1])
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                if isinstance(parsed, dict):
+                    return parsed
         raise LLMError("model returned malformed JSON three times")
 
     async def list_models(self) -> list[str]:

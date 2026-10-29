@@ -208,3 +208,22 @@ async def test_chat_529_exhausted_raises():
     c = _client(handler)
     with pytest.raises(LLMError):
         await c.chat("m1", [])
+
+
+@pytest.mark.asyncio
+async def test_chat_json_handles_fenced_and_prefixed_prose():
+    responses = [
+        "Here is my reasoning about the claim {which has braces} —\n```json\n{\"ok\": true}\n```",
+        json.dumps({"ok": False, "reason": "truncated"}),
+    ]
+
+    async def _run():
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=dict(CHAT_BODY, choices=[{"message": {"content": responses.pop(0)}}]))
+
+        c = _client(handler)
+        out = await c.chat_json("m1", [], {"type": "object"})
+        await c._http.aclose()
+        return out
+
+    assert await _run() == {"ok": True}  # fenced JSON wins over the brace-bearing prose prefix

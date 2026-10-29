@@ -42,7 +42,7 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
                 f"New claims with verdicts:\n"
                 + "\n".join(f"- {c.text} [{(verdict_by_claim.get(c.id) or Verdict(claim_id=c.id, verdict='unverified', reason='', model='')).verdict}]" for c in claims)
             )},
-        ], CHANGES_SCHEMA, max_tokens=min(run_max_tokens, 600))
+        ], CHANGES_SCHEMA, max_tokens=min(run_max_tokens, 1500))  # 600 truncated real delta runs mid-JSON
         changes = data.get("changes", [])[:8]
 
     async def _section(sq):
