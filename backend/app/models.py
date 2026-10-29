@@ -57,3 +57,4 @@ class ResearchReport(BaseModel):
     claim_proofs: dict[str, dict] = Field(default_factory=dict)   # claim_id → {verdict, reason, web_checked}
     sources_unused: list[dict] = Field(default_factory=list)      # fetched but uncited: {url, title}
     changes: list[str] = Field(default_factory=list)  # delta mode: vs prior report
+    notes_considered: int = 0  # how many private notes shaped this run — count only, never content

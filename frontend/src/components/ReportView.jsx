@@ -79,6 +79,9 @@ export default function ReportView({ runId, report }) {
           <ul>{report.changes.map((c, i) => <li key={i}>{c}</li>)}</ul>
         </div>
       )}
+      {report.notes_considered > 0 && (
+        <p className="muted">💡 Considered {report.notes_considered} private note{report.notes_considered === 1 ? "" : "s"} for this topic — their content stays yours.</p>
+      )}
       {report.sections.map((sec, i) => (
         <section key={i}>
           <h3>{sec.sub_question}</h3>

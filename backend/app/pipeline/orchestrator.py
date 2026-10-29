@@ -107,7 +107,7 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
         await emit({"run_id": run_id, "stage": "synthesizing", "payload": {}})
         report = await synthesize(brief, active_persona, tk, p, claims, verdicts,
                                   sources, prior, llm, llm.planner_model,
-                                  uncovered=uncovered)
+                                  uncovered=uncovered, notes_count=len(notes))
 
         memory.save_run(brief, active_persona, tk, report.model_dump(), run_uuid=run_id)
         memory.save_verdicts(run_id, [v.model_dump() for v in verdicts])

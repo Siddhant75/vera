@@ -80,6 +80,13 @@ async def test_claim_proofs_include_votes_and_prosecution():
     assert proof["prosecution"] == "counter text"
 
 
+async def test_notes_considered_count():
+    llm = FakeLLM([NARR_OK])
+    report = await synthesize("b", "founder", "k", PLAN, [CLAIM], VERDICTS, [SOURCE], None, llm, "m-syn",
+                              notes_count=2)
+    assert report.notes_considered == 2
+
+
 CITED = Claim(id="c1", sub_question_id="q1", text="X", citation_urls=["https://a.com/1"])
 UNUSED_SRC = Source(url="https://unused.com/z", title="U", content="c", sub_question_id="q1")
 

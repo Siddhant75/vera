@@ -162,3 +162,19 @@ async def test_run_summary_and_sources_persisted(tmp_path):
     saved = memory.get_sources("r-sum")
     assert any(s["url"] == "https://a.com/1" for s in saved)
     assert report.sources_unused == []  # a.com/1 cited → nothing unused
+
+
+async def test_notes_considered_counted(tmp_path):
+    llm = make_llm([PLAN, DRAFT, VERDICT_SUP, VERDICT_SUP, NARR])
+    memory = Memory(str(tmp_path / "t.db"))
+    memory.add_note("explain-x", "we already run k8s in prod")
+    memory.add_note("explain-x", "budget is tight this quarter")
+    events = []
+
+    async def emit(e):
+        events.append(e)
+
+    report = await run_research("r-notes", "Explain X", "engineer", "", False,
+                                llm, make_tavily(), memory, emit)
+    assert report.notes_considered == 2  # count only — content never in report
+    assert "k8s in prod" not in report.model_dump_json()
