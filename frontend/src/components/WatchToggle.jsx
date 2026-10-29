@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { addWatch, listWatches, removeWatch } from "../api";
+import { addWatch, editWatch, listWatches, removeWatch } from "../api";
 
 const STATUS_COLOR = {
   changed: "var(--green)",
@@ -35,6 +35,14 @@ export default function WatchToggle({ topic, brief, persona }) {
                 {w.last_status || "pending first check"}{w.last_changes != null ? ` (${w.last_changes} changes)` : ""}
               </span>
               <span className="muted">every {w.interval_hours}h</span>
+              <button type="button" title="Re-freeze this watch"
+                      onClick={async () => {
+                        const brief = window.prompt("New brief for this watch:", w.brief);
+                        if (brief === null) return;
+                        const hours = parseInt(window.prompt("Interval in hours:", String(w.interval_hours)), 10);
+                        await editWatch(w.id, { brief, interval_hours: isNaN(hours) ? undefined : hours });
+                        refresh();
+                      }}>✎</button>
               <button type="button" onClick={async () => { await removeWatch(w.id); refresh(); }}>✕</button>
               {w.last_digest && (
                 <details className="watch-digest">

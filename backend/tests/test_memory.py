@@ -48,6 +48,27 @@ def test_runs_source_migrates_legacy(tmp_path):
     assert m.list_runs()[0]["source"] == "manual"
 
 
+def test_update_watch_partial(tmp_path):
+    m = Memory(str(tmp_path / "t.db"))
+    wid = m.add_watch("k8s choice", "old brief", "founder", interval_hours=6)
+    m.update_watch(wid, brief="new brief", interval_hours=12)
+    w = m.list_watches()[0]
+    assert w["brief"] == "new brief"
+    assert w["interval_hours"] == 12
+    assert w["topic"] == "k8s choice"  # untouched
+    assert w["persona"] == "founder"   # untouched
+    m.update_watch(wid, interval_hours=0)
+    assert m.list_watches()[0]["interval_hours"] == 1  # re-clamped
+
+
+def test_update_watch_missing_fields_kept(tmp_path):
+    m = Memory(str(tmp_path / "t.db"))
+    wid = m.add_watch("t", "b", "founder", interval_hours=6)
+    m.update_watch(wid)
+    w = m.list_watches()[0]
+    assert (w["topic"], w["brief"], w["persona"], w["interval_hours"]) == ("t", "b", "founder", 6)
+
+
 def test_last_report_most_recent_wins(tmp_path):
     m = Memory(str(tmp_path / "t.db"))
     m.save_run("brief1", "engineer", "k", {"v": 1})

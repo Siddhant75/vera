@@ -66,6 +66,16 @@ export async function removeWatch(id) {
   return (await fetch(`${BASE}/api/watch/${id}`, { method: "DELETE" })).json();
 }
 
+export async function editWatch(id, patch) {
+  const r = await fetch(`${BASE}/api/watch/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!r.ok) throw new Error((await r.json()).error || `edit failed (${r.status})`);
+  return r.json();
+}
+
 export async function listSkills() {
   return (await fetch(`${BASE}/api/skills`)).json();
 }

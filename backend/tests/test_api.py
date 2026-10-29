@@ -182,3 +182,18 @@ async def test_budget_guard_429(tmp_path, monkeypatch):
         r = await c.post("/api/research", json={"brief": "Explain X"})
         assert r.status_code == 429
         assert "budget" in r.json()["error"].lower()
+
+
+async def test_watch_edit_endpoint(tmp_path):
+    app, memory = make_app(tmp_path, FakeLLM(), FakeTavily())
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        wid = (await c.post("/api/watch", json={"topic": "t", "brief": "b", "persona": "founder",
+                                                "interval_hours": 6})).json()["id"]
+        r = await c.put(f"/api/watch/{wid}", json={"brief": "new brief", "interval_hours": 12})
+        assert r.status_code == 200
+        w = (await c.get("/api/watch")).json()[0]
+        assert w["brief"] == "new brief" and w["interval_hours"] == 12
+        r = await c.put("/api/watch/999", json={"brief": "x"})
+        assert r.status_code == 404
+        r = await c.put(f"/api/watch/{wid}", json={})
+        assert r.status_code == 200  # empty update = no-op, not error

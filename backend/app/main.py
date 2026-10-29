@@ -203,6 +203,20 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         memory.remove_watch(watch_id)
         return {"ok": True}
 
+    class WatchUpdate(BaseModel):
+        topic: str | None = None
+        brief: str | None = None
+        persona: str | None = None
+        interval_hours: int | None = None
+
+    @app.put("/api/watch/{watch_id}")
+    async def edit_watch(watch_id: int, w: WatchUpdate):
+        updated = memory.update_watch(watch_id, topic=w.topic, brief=w.brief,
+                                      persona=w.persona, interval_hours=w.interval_hours)
+        if not updated:
+            return JSONResponse(status_code=404, content={"error": "watch not found"})
+        return {"ok": True}
+
     # ---- Skills (reusable research recipes) ----
     class SkillIn(BaseModel):
         name: str

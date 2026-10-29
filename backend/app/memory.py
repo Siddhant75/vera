@@ -183,6 +183,20 @@ class Memory:
         self._conn.commit()
         return cur.lastrowid
 
+    def update_watch(self, watch_id: int, topic: str | None = None, brief: str | None = None,
+                     persona: str | None = None, interval_hours: int | None = None) -> bool:
+        """Partial re-freeze: None = keep. Interval re-clamped >=1. False = unknown id."""
+        if not self._conn.execute("SELECT 1 FROM watches WHERE id = ?", (watch_id,)).fetchone():
+            return False
+        interval = max(1, int(interval_hours)) if interval_hours is not None else None
+        self._conn.execute(
+            "UPDATE watches SET topic = COALESCE(?, topic), brief = COALESCE(?, brief), "
+            "persona = COALESCE(?, persona), interval_hours = COALESCE(?, interval_hours) WHERE id = ?",
+            (topic, brief, persona, interval, watch_id),
+        )
+        self._conn.commit()
+        return True
+
     def remove_watch(self, watch_id: int) -> None:
         self._conn.execute("DELETE FROM watches WHERE id = ?", (watch_id,))
         self._conn.commit()
