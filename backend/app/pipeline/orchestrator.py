@@ -131,6 +131,9 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
         await emit({"run_id": run_id, "stage": END, "payload": {}})
         return report
     except Exception as exc:
+        detail = str(exc)
+        if hasattr(exc, "exceptions"):  # ExceptionGroup (parallel stages): flatten so detail keeps the root cause
+            detail = "; ".join(f"{type(e).__name__}: {e}" for e in exc.exceptions)
         await emit({"run_id": run_id, "stage": "error",
-                    "payload": {"failed_stage": stage["current"], "detail": str(exc)}})
+                    "payload": {"failed_stage": stage["current"], "detail": detail}})
         await emit({"run_id": run_id, "stage": END, "payload": {}})

@@ -1,3 +1,5 @@
+import asyncio
+
 from app.llm import TokenFactoryClient
 from app.models import Claim, ResearchPlan, ResearchReport, ReportSection, Source, Verdict
 
@@ -43,18 +45,14 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
         ], CHANGES_SCHEMA, max_tokens=min(run_max_tokens, 600))
         changes = data.get("changes", [])[:8]
 
-    sections: list[ReportSection] = []
-    open_questions: list[str] = []
-    for sq in plan.sub_questions:
+    async def _section(sq):
         q_claims = claims_by_q.get(sq.id, [])
         if not q_claims:
-            sections.append(ReportSection(
+            return (ReportSection(
                 sub_question=sq.text,
                 narrative="No sources found for this question; nothing verified to report.",
                 claims=[],
-            ))
-            open_questions.append(sq.text)
-            continue
+            ), [sq.text])
         claim_lines = []
         for c in q_claims:
             v = verdict_by_claim.get(c.id)
@@ -69,8 +67,13 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
             )},
             {"role": "user", "content": f"Brief: {brief}\nSub-question: {sq.text}\n\nVerified claims:\n" + "\n".join(claim_lines)},
         ], SECTION_SCHEMA, max_tokens=run_max_tokens)
-        sections.append(ReportSection(sub_question=sq.text, narrative=data["narrative"], claims=q_claims))
-        open_questions.extend(data.get("open_questions", []))
+        return (ReportSection(sub_question=sq.text, narrative=data["narrative"], claims=q_claims),
+                data.get("open_questions", []))
+
+    async with asyncio.TaskGroup() as tg:
+        tasks = [tg.create_task(_section(sq)) for sq in plan.sub_questions]
+    sections = [t.result()[0] for t in tasks]  # plan order, never completion order
+    open_questions = [q for t in tasks for q in t.result()[1]]
 
     if uncovered:
         sections.append(ReportSection(

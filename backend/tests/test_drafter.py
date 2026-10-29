@@ -78,3 +78,32 @@ async def test_claims_cap_per_tier():
     for c in out:
         per_q[c.sub_question_id] = per_q.get(c.sub_question_id, 0) + 1
     assert all(n <= 3 for n in per_q.values())
+
+
+async def test_drafter_parallel_preserves_order_and_time():
+    import asyncio
+    import time as _t
+
+    import re as _re
+
+    class StaggeredLLM(FakeLLM):
+        """Content-aware double: first sub-question responds slowest — a sequential drafter
+        would still order correctly, so the TIME assert is what proves parallelism."""
+        async def chat_json(self, model, messages, schema, max_tokens=4096):
+            self.prompts.append(messages)
+            flat = str(messages)
+            i = int(_re.search(r"Question (\d)\?", flat).group(1))
+            await asyncio.sleep(0.15 - 0.02 * i)
+            return {"claims": [{"text": f"claim q{i}", "citation_urls": [f"https://a.com/{i}"]}]}
+
+    subs = [SubQuestion(id=f"q{i}", text=f"Question {i}?") for i in range(1, 7)]
+    plan6 = PLAN.model_copy(update={"sub_questions": subs})
+    sources6 = [Source(url=f"https://a.com/{i}", title=f"A{i}", content="c", sub_question_id=f"q{i}")
+                for i in range(1, 7)]
+    llm = StaggeredLLM()
+    t0 = _t.monotonic()
+    out = await draft_claims("b", plan6, sources6, {}, llm, "m-d")
+    elapsed = _t.monotonic() - t0
+    texts = [c.text for c in out]
+    assert texts == [f"claim q{i}" for i in range(1, 7)]  # plan order, not completion order
+    assert elapsed < 0.35, f"drafter still sequential: {elapsed:.2f}s"  # parallel ≈0.15s, sequential ≈0.6s

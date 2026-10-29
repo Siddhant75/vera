@@ -106,3 +106,34 @@ async def test_changes_capped():
     report = await synthesize("b", "founder", "k", PLAN, [CITED], [], [SOURCE], PRIOR, llm, "m-syn",
                               run_max_tokens=400)
     assert len(report.changes) <= 8
+
+
+async def test_synthesizer_sections_parallel_preserve_order():
+    import asyncio
+    import time as _t
+
+    import re as _re
+
+    class StaggeredLLM(FakeLLM):
+        async def chat_json(self, model, messages, schema, max_tokens=4096):
+            self.prompts.append(messages)
+            flat = str(messages)
+            i = int(_re.search(r"Question (\d)\?", flat).group(1))
+            await asyncio.sleep(0.15 - 0.02 * i)
+            return {"narrative": f"Section {i}", "open_questions": [f"q{i}?"]}
+
+    subs = [SubQuestion(id=f"q{i}", text=f"Question {i}?") for i in range(1, 6)]
+    plan5 = PLAN.model_copy(update={"sub_questions": subs})
+    claims5 = [Claim(id=f"c{i}", sub_question_id=f"q{i}", text=f"claim {i}", citation_urls=[])
+               for i in range(1, 6)]
+    sources5 = [Source(url=f"https://a.com/{i}", title=f"A{i}", content="c", sub_question_id=f"q{i}")
+                for i in range(1, 6)]
+    verd5 = [Verdict(claim_id=f"c{i}", verdict="supported", reason="r", model="m") for i in range(1, 6)]
+    llm = StaggeredLLM()
+    t0 = _t.monotonic()
+    report = await synthesize("b", "founder", "k", plan5, claims5, verd5, sources5, None, llm, "m-s")
+    elapsed = _t.monotonic() - t0
+    heads = [s.sub_question for s in report.sections if s.sub_question != "Not investigated"]
+    assert heads == [f"Question {i}?" for i in range(1, 6)]  # plan order
+    assert [s.narrative for s in report.sections] == [f"Section {i}" for i in range(1, 6)]  # content-order match
+    assert elapsed < 0.35, f"synthesizer still sequential: {elapsed:.2f}s"

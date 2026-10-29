@@ -1,3 +1,5 @@
+import asyncio
+
 from app.llm import TokenFactoryClient
 from app.models import Claim, ResearchPlan, Source
 
@@ -27,12 +29,10 @@ async def draft_claims(brief: str, plan: ResearchPlan, sources: list[Source],
     for s in sources:
         by_q.setdefault(s.sub_question_id, []).append(s)
 
-    out: list[Claim] = []
-    n = 0
-    for sq in plan.sub_questions:
+    async def _draft_one(sq) -> list[Claim]:
         q_sources = by_q.get(sq.id, [])
         if not q_sources:
-            continue  # no evidence → no claims, no hallucinated fill
+            return []  # no evidence → no claims, no hallucinated fill
         allowed = {s.url for s in q_sources}
         evidence = "\n\n".join(
             f"URL: {s.url}\nTITLE: {s.title}\nCONTENT: {s.content[:1200]}" for s in q_sources
@@ -49,10 +49,21 @@ async def draft_claims(brief: str, plan: ResearchPlan, sources: list[Source],
                     "queries; do not cite them as web sources):\n"
                     + "\n".join(f"- {n['content'][:2000]}" for n in notes)) if notes else "")},
         ], DRAFT_SCHEMA)
+        claims = []
         for item in data.get("claims", [])[:claims_cap]:
             cited = [u for u in item.get("citation_urls", []) if u in allowed]
             if not cited:
                 continue
+            claims.append(Claim(id="", sub_question_id=sq.id, text=item["text"], citation_urls=cited))
+        return claims
+
+    async with asyncio.TaskGroup() as tg:
+        tasks = [tg.create_task(_draft_one(sq)) for sq in plan.sub_questions]
+    # reassemble in plan order (not completion order); ids assigned after ordering
+    out: list[Claim] = []
+    n = 0
+    for t in tasks:
+        for claim in t.result():
             n += 1
-            out.append(Claim(id=f"c{n}", sub_question_id=sq.id, text=item["text"], citation_urls=cited))
+            out.append(claim.model_copy(update={"id": f"c{n}"}))
     return out
