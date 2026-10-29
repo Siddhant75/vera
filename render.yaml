@@ -1,0 +1,52 @@
+# Render blueprint: one repo → backend (Python) + frontend (static).
+# Deploy: Render dashboard → New → Blueprint → point at this repo. Paste real keys in the dashboard.
+# Secrets are sync:false placeholders on purpose — never commit real keys.
+services:
+  - type: web
+    name: vera-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/telemetry
+    disk:
+      name: vera-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DB_PATH
+        value: /var/data/vera.db
+      # Demo cost posture (session verdict 2026-10-30): watcher loop off, watch cap, token ceiling.
+      - key: WATCH_INTERVAL_MINUTES
+        value: "0" # always-on is an operator choice: set e.g. 30 to enable the watcher loop
+      - key: MAX_WATCHES
+        value: "5"
+      - key: DAILY_TOKEN_BUDGET
+        value: "2000000"
+      - key: TOKEN_FACTORY_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: TOKEN_FACTORY_BASE_URL
+        value: https://api.tokenfactory.nebius.com/v1
+      - key: PLANNER_MODEL
+        sync: false
+      - key: VERIFIER_MODELS
+        sync: false
+
+  - type: web
+    name: vera-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE
+        fromService:
+          type: web
+          name: vera-backend
+          property: host # https://vera-backend-<slug>.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

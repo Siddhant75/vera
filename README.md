@@ -20,6 +20,17 @@ uvicorn app.main:app --reload
 cd frontend && npm install && npm run dev
 ```
 
+## 🚀 Deployment & Ops
+
+**One-click deploy:** this repo ships a [`render.yaml`](render.yaml) blueprint — Render dashboard → New → Blueprint → point at the repo → paste your keys. Backend (Python + uvicorn + persistent disk for SQLite) and frontend (static) deploy from one file; Render auto-deploys on every push. No Dockerfile needed for this stack; GitHub Actions unnecessary since Render builds on push.
+
+**Public demo posture** (what's on/off on the deployed demo):
+- Watcher loop **off** (`WATCH_INTERVAL_MINUTES=0`) — watches can be created, edited, and viewed, but nothing runs automatically. Always-on is an operator choice: set the env to e.g. `30` on your own instance.
+- Watch slots capped (`MAX_WATCHES=5`) and a process-lifetime token ceiling (`DAILY_TOKEN_BUDGET=2000000`) — exhausting it returns a clear 429, and the free-tier spin-down/restart resets it.
+- **Bring your own keys:** run locally (`.env`, see Quickstart) or deploy your own blueprint instance — then everything runs against your Token Factory + Tavily accounts, which is the intended mode for a *personal* assistant anyway.
+
+**Always-on in practice:** Vera never burns LLM tokens idling — the watcher probes each due topic with 1 Tavily search and only wakes the models when content actually changed; failing watches back off exponentially. A watch that produced a run shows up with a `watch` badge in the activity log.
+
 ## 💡 The Problem & The Insight
 
 - Every open-source deep-research agent (gpt-researcher, smolagents, open_deep_research…) is **stateless**: same brief, same generic report, no memory of you or past research.

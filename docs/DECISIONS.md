@@ -123,6 +123,15 @@ Recorded for honesty and as the post-hackathon backlog. Each survived a fresh fu
 - `tests/test_memory.py` — pre-existing legacy row's `source="manual"` read-back unpinned (ALTER DEFAULT covers it).
 - `frontend/src/components/WatchToggle.jsx` — `editWatch` rejection unhandled (no catch/finally-refresh on 404/network).
 
+## Hosting (Task 27, 2026-10-30) — demo posture + deploy shape
+
+- **Dormancy rejected as a UI feature; adopted from the platform.** Idle Vera burns 0 Token Factory tokens (every call is run-triggered; the watcher is probe-gated at 1 Tavily search). "Sleep until a judge wakes it" would add friction at the exact moment the demo is scored, hide the always-on differentiator, and solve a non-problem — judges don't read instructions, and $25 credits cover hundreds of ~120K-token runs. Render free tier's idle spin-down provides natural dormancy for free, and each restart resets `DAILY_TOKEN_BUDGET` — the daily ceiling the user wanted, no code.
+- **Public demo posture (agreed)**: `WATCH_INTERVAL_MINUTES=0` (watcher loop off — watches still creatable/editable/viewable so the story demos, but nothing recurring runs), `MAX_WATCHES=5` (guard against watch-slot farming; the only new code), `DAILY_TOKEN_BUDGET=2000000` (~16 full runs per process life). These live in the Render dashboard/blueprint, never in the repo.
+- **`MAX_WATCHES` semantics**: cap check inside the request path (count-then-insert; benign TOCTOU in single-process SQLite — worst case one extra watch). At cap: `POST /api/watch` → 429; a skill run with `watch: true` still RUNS and returns `watch_skipped` — the watch is a bonus, never a blocker (same ruling as webhook digests).
+- **No Dockerfile, no GitHub Actions for deploy**: Render Python runtime + auto-deploy-on-push covers it; a container adds build surface with zero benefit for a single-process FastAPI + SQLite app. Dockerfile/GH-Actions remain a documented future option if the project outgrows this.
+- **Frontend API base injectable at build time** (`VITE_API_BASE`, dev default `http://localhost:8000`); CORS already open; SSE passes Render's proxy.
+- **Receipts-then-freeze**: one real watch run is demonstrated pre-freeze and left in the activity log (`watch` badge + digest) — evidence of always-on with zero ongoing burn; the loop stays off on the demo.
+
 ## Submission artifacts remaining
 
 Hosted demo URL (set `DAILY_TOKEN_BUDGET` first), <3-min YouTube video, devpost submission.
