@@ -67,6 +67,14 @@ Key decisions, their reasoning, and the trade-offs accepted. Newest last.
 - **Freshness probe**: `role="probe"`, `time_range="week"`, topic stays GENERAL — `topic="news"` biases against technical blogs and would cause false no-change on exactly the topics users watch (deviation from the initial verdict, ruled here). Probe-role telemetry counted at client level; fakes record roles.
 - **Chunks ruling**: no code change — Tavily search already returns query-reranked content chunks by default; Vera's 800-char caps remain the deterministic input gate on top.
 
+## Mode boundary (2026-10-30) — prompted vs automated research
+
+- **The frame**: in prompted research the USER supplies the novelty (a new brief); in automated research Vera must supply the novelty signal itself — that is the freshness probe. Prompted = user-triggered, user-shaped, fresh-or-delta by choice. Automated = clock-triggered, probe-gated, FORCED delta (watch runs only ever answer "what changed since you last looked"), brief frozen at watch creation.
+- **Same personalization substrate, different activation**: prompted mode is personalization-in-the-moment (live persona toggle, fresh notes, your delta choice); automated mode is a frozen+live hybrid — brief/persona/interval freeze at watch creation, but trust domains, topic notes, feedback strictness, and research memory are all read LIVE at run time. You train it while present; it researches correctly while away.
+- **Skill runs never mutate the stored profile** (blur fix, was a real leak): the old `run_skill` swapped persona + source prefs into the profile and never restored — a "Run + Watch" skill silently froze the swapped profile into later watch behavior. Now: `ResearchIn` carries optional per-run `trusted_sources`/`excluded_sources`; `run_research(domain_prefs=...)` takes the explicit override (None → built from profile); skill persona reaches the run via the existing explicit `persona` param. Ruled against swap-and-restore: `post_research` returns before the background run reads the profile — a restore would race. Cost if wrong: none — skill prefs are strictly per-run now.
+- **Watch briefs freeze on purpose**: editing your profile/goals later does NOT rewrite existing watches — predictability is a feature of automation (a watcher silently researching new intent would be worse). Delete + recreate (or future: re-freeze) to change intent.
+- **Notes match by topic key (fuzzy ≥0.75 or token overlap)**: a watch topic phrased very differently from your note topic may miss the notes — honest scope, same class as the privacy paraphrase caveat.
+
 ## Planned next (approved 2026-10-28, not yet built)
 
 - **Task 24 — Topic Watch (the track's "always-on")**: watched-topics table + in-app scheduler; due topic → automatic delta run → changes digest. Watcher failure = logged + retried next cycle (last missing fallback). Token cost ≈ $0.10-0.30/topic/day, inside DAILY_TOKEN_BUDGET.

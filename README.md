@@ -56,7 +56,7 @@ brief → Planner → Searcher → Drafter → Verifier → Synthesizer → repo
 
 ## Track
 
-**Personal AI** — an always-on, private research assistant: persistent memory (it knows your role, goals, and past research), reusable research skills, source trust you control, and a topic watcher that keeps researching while you're away. All model inference runs on **Nebius Token Factory** with **NVIDIA Nemotron** + open models; the demo app is hosted on Vercel/Render (inference compliance is unchanged — every LLM call goes to Token Factory).
+**Personal AI** — an always-on, private research assistant: persistent memory (it knows your role, goals, and past research), reusable research skills, source trust you control, and a topic watcher that keeps researching while you're away. Two modes, one memory: research you *prompt* is shaped in the moment by your persona, notes, and trust settings; research Vera *initiates* (watches) uses a frozen brief and persona but reads your trust, notes, and feedback live — so what you taught it while present still steers what it does while you're away. Watches never spend LLM tokens unless the freshness probe detects real change. All model inference runs on **Nebius Token Factory** with **NVIDIA Nemotron** + open models; the demo app is hosted on Vercel/Render (inference compliance is unchanged — every LLM call goes to Token Factory).
 
 ## 🔒 Security & Privacy
 
