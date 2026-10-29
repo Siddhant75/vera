@@ -225,3 +225,31 @@ async def test_notes_considered_counted(tmp_path):
                                 llm, make_tavily(), memory, emit)
     assert report.notes_considered == 2  # count only — content never in report
     assert "k8s in prod" not in report.model_dump_json()
+
+
+async def test_quick_tier_threaded_through_pipeline(tmp_path):
+    PLAN_BIG = {"depth": "quick", "sub_questions": [
+        {"id": "a", "text": "What is X?"}, {"id": "b", "text": "Why X?"},
+        {"id": "c", "text": "When X?"}, {"id": "d", "text": "Where X?"},
+        {"id": "e", "text": "Who X?"}]}
+    llm = FakeLLM([PLAN_BIG, DRAFT, NARR], planner_model="m-p", verifier_models=["m-v"],
+                  model_responses={"m-v": [{"refutation_query": "X is wrong", "suspicions": "s"},
+                                           VERDICT_SUP, VERDICT_SUP]})
+    memory = Memory(str(tmp_path / "t.db"))
+    events = []
+
+    async def emit(e):
+        events.append(e)
+
+    report = await run_research("r-quick", "Is X true?", "engineer", "", False,
+                                llm, make_tavily(), memory, emit)
+    done = [e for e in events if e["stage"] == "done"][0]
+    assert done["payload"]["report"]["depth"] == "quick"
+    assert done["payload"]["run_summary"]["search_budget"] == 8
+    assert report.depth == "quick"
+    assert len([s for s in report.sections if s.sub_question != "Not investigated"]) <= 3  # tier ceiling
+    draft_prompt = str(llm.prompts[1])
+    assert "at most 3" in draft_prompt  # claims cap per tier reached the drafter
+    # quick tier: prosecutor's visible degradation lands in the report's claim proofs
+    assert any("quick tier" in (pr.get("prosecution") or "").lower()
+               for pr in report.claim_proofs.values())

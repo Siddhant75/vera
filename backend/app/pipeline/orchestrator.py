@@ -52,6 +52,10 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
             uncovered = uncovered_reqs(p)
         if len(p.sub_questions) > 8:
             p = p.model_copy(update={"sub_questions": p.sub_questions[:8]})
+        # tier ceilings: depth sizes the whole pipeline (personalization is orthogonal — persona/notes/trust apply at every tier)
+        tier_ceiling = {"quick": 3, "standard": 5, "deep": 8}.get(p.depth, 5)
+        if len(p.sub_questions) > tier_ceiling:
+            p = p.model_copy(update={"sub_questions": p.sub_questions[:tier_ceiling]})
 
         # True delta: sub-questions marked reused skip search+draft+verify; prior claims + verdicts carried
         reused_sections: dict[str, dict] = {}
@@ -77,21 +81,23 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
         from app.memory import clean_domains
         domain_prefs = domain_prefs or {"trusted": clean_domains(profile.get("trusted_sources", [])),
                                         "excluded": clean_domains(profile.get("excluded_sources", []))}
-        budget = SearchBudget(budget_for_brief(brief))
+        budget = SearchBudget(budget_for_brief(brief, depth=p.depth))
         sources = await search_sources(search_plan, tavily, memory.trust_multiplier, budget=budget,
                                        gate=gate, domain_prefs=domain_prefs)
 
         stage["current"] = "drafting"
         await emit({"run_id": run_id, "stage": "drafting", "payload": {"source_count": len(sources)}})
         claims = await draft_claims(brief, search_plan, sources, profile, llm, llm.drafter_model,
-                                    notes=notes)
+                                    notes=notes,
+                                    claims_cap={"quick": 3, "standard": 4, "deep": 5}.get(p.depth, 4))
 
         stage["current"] = "verifying"
         await emit({"run_id": run_id, "stage": "verifying", "payload": {"claim_count": len(claims)}})
         verdicts = await verify_claims(claims, sources, llm.verifier_models, llm, tavily,
                                        trust_fn=memory.trust_multiplier,
                                        flagged_claims=memory.negative_claim_texts(),
-                                       budget=budget, gate=gate, domain_prefs=domain_prefs)
+                                       budget=budget, gate=gate, domain_prefs=domain_prefs,
+                                       tier=p.depth)
 
         # merge reused claims (ids prefixed r- to avoid collisions) + their prior verdicts
         for sq_id, section in reused_sections.items():
@@ -110,7 +116,7 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
         await emit({"run_id": run_id, "stage": "synthesizing", "payload": {}})
         report = await synthesize(brief, active_persona, tk, p, claims, verdicts,
                                   sources, prior, llm, llm.planner_model,
-                                  uncovered=uncovered, notes_count=len(notes))
+                                  uncovered=uncovered, notes_count=len(notes), depth=p.depth)
 
         memory.save_run(brief, active_persona, tk, report.model_dump(), run_uuid=run_id, source=source)
         memory.save_verdicts(run_id, [v.model_dump() for v in verdicts])

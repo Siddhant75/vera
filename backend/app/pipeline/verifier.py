@@ -55,7 +55,8 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
                         models: list[str], llm: TokenFactoryClient,
                         tavily: TavilyClient, trust_fn=None,
                         max_concurrency: int = 6, flagged_claims: list[str] | None = None,
-                        budget=None, gate=None, domain_prefs: dict | None = None) -> list[Verdict]:
+                        budget=None, gate=None, domain_prefs: dict | None = None,
+                        tier: str = "deep") -> list[Verdict]:
     sem = asyncio.Semaphore(max_concurrency)
     strictness = ""
     if flagged_claims:
@@ -101,7 +102,7 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
         if out.get("suspicions"):
             parts.append(f"PROSECUTOR SUSPICIONS: {out['suspicions']}")
         query = out.get("refutation_query")
-        if query and (budget is None or budget.try_consume()):
+        if query and tier != "quick" and (budget is None or budget.try_consume()):
             try:
                 web = await tavily.search(gate(query) if gate else query, role="prosecution",
                                           exclude_domains=excluded)
@@ -118,6 +119,8 @@ async def verify_claims(claims: list[Claim], sources: list[Source],
                     community = []  # silently absent — verdict path unchanged
                 for w in _web_sources(community, claim.sub_question_id, trust_fn):
                     parts.append(f"COMMUNITY EVIDENCE ({w.url}): {w.title} - {w.content[:500]}")
+        elif query and tier == "quick":
+            parts.append("PROSECUTOR: quick tier - refutation search skipped, suspicions stand")
         elif query:
             parts.append("PROSECUTOR: search budget exhausted - refutation search skipped")
         return "\n".join(parts)

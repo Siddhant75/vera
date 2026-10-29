@@ -15,6 +15,11 @@ class SearchBudget:
         return True
 
 
-def budget_for_brief(brief: str) -> int:
+_TIER_BUDGET = {"quick": 8, "standard": 14, "deep": 20}
+
+
+def budget_for_brief(brief: str, depth: str = "standard") -> int:
     reqs = parse_requirements(brief)
-    return min(12 + 2 * len(reqs), 40) if reqs else 20
+    if reqs:  # explicit requirements: formula wins, tier irrelevant (quick is clamped to standard+)
+        return min(12 + 2 * len(reqs), 40)
+    return _TIER_BUDGET.get(depth, 14)

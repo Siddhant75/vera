@@ -21,7 +21,8 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
                      claims: list[Claim], verdicts: list[Verdict], sources: list[Source],
                      prior_report: dict | None, llm: TokenFactoryClient,
                      model: str, uncovered: list[str] | None = None,
-                     run_max_tokens: int = 4096, notes_count: int = 0) -> ResearchReport:
+                     run_max_tokens: int = 4096, notes_count: int = 0,
+                     depth: str = "standard") -> ResearchReport:
     verdict_by_claim = {v.claim_id: v for v in verdicts}
     claims_by_q: dict[str, list[Claim]] = {}
     for c in claims:
@@ -102,5 +103,5 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
             if s.url not in cited_urls
         ][:30],
         verdict_summary=summary, claim_verdicts=claim_verdicts,
-        claim_proofs=claim_proofs, changes=changes, notes_considered=notes_count,
+        claim_proofs=claim_proofs, changes=changes, notes_considered=notes_count, depth=depth,
     )

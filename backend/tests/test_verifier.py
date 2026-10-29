@@ -288,3 +288,19 @@ async def test_recheck_extract_transport_failure_degrades():
     out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily)
     assert out[0].web_checked is True  # re-check proceeded snippet-only
     assert out[0].verdict == "contradicted"
+
+
+async def test_quick_tier_skips_refutation_search_but_keeps_vote():
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE, SUP], "mB": [SUP]})
+    tavily = FakeTavily()
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily, tier="quick")
+    assert tavily.queries == []  # no refutation search at quick tier
+    assert "quick tier" in out[0].prosecution  # visible degradation, not silence
+    assert out[0].verdict == "supported"  # vote still happened
+
+
+async def test_quick_tier_still_rechecks_on_disagreement():
+    llm = FakeLLM(model_responses={"mA": [PROSECUTE_CLEAN, SUP, SUP], "mB": [CON, CON]})
+    tavily = FakeTavily({"X is true": [{"url": "https://w.com/x", "title": "W", "content": "web evidence"}]})
+    out = await verify_claims([CLAIM], SOURCES, ["mA", "mB"], llm, tavily, tier="quick")
+    assert out[0].web_checked is True  # disagreement re-check survives quick tier

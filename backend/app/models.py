@@ -59,3 +59,4 @@ class ResearchReport(BaseModel):
     sources_unused: list[dict] = Field(default_factory=list)      # fetched but uncited: {url, title}
     changes: list[str] = Field(default_factory=list)  # delta mode: vs prior report
     notes_considered: int = 0  # how many private notes shaped this run — count only, never content
+    depth: str = "standard"  # quick | standard | deep — how much research this question asked for

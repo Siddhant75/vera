@@ -22,7 +22,7 @@ DRAFT_SCHEMA = {
 
 async def draft_claims(brief: str, plan: ResearchPlan, sources: list[Source],
                        profile: dict, llm: TokenFactoryClient, model: str,
-                       notes: list[dict] | None = None) -> list[Claim]:
+                       notes: list[dict] | None = None, claims_cap: int = 5) -> list[Claim]:
     by_q: dict[str, list[Source]] = {}
     for s in sources:
         by_q.setdefault(s.sub_question_id, []).append(s)
@@ -40,7 +40,7 @@ async def draft_claims(brief: str, plan: ResearchPlan, sources: list[Source],
         data = await llm.chat_json(model, [
             {"role": "system", "content": (
                 f"You are a research drafter writing for a {profile.get('persona', 'engineer')}. "
-                "Extract the LOAD-BEARING factual claims from ONLY the provided sources — at most 5 "
+                f"Extract the LOAD-BEARING factual claims from ONLY the provided sources — at most {claims_cap} "
                 "per sub-question, the ones that actually move the decision. Skip trivia. Every claim "
                 "must cite the exact source URLs that support it."
             )},
@@ -49,7 +49,7 @@ async def draft_claims(brief: str, plan: ResearchPlan, sources: list[Source],
                     "queries; do not cite them as web sources):\n"
                     + "\n".join(f"- {n['content'][:2000]}" for n in notes)) if notes else "")},
         ], DRAFT_SCHEMA)
-        for item in data.get("claims", [])[:5]:
+        for item in data.get("claims", [])[:claims_cap]:
             cited = [u for u in item.get("citation_urls", []) if u in allowed]
             if not cited:
                 continue

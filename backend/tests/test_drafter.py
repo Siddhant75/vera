@@ -63,3 +63,18 @@ async def test_claims_capped_per_subquestion():
     out = await draft_claims("b", PLAN, SOURCES, profile(), llm, "m-draft")
     assert len(out) == 5  # load-bearing claims only
     assert "at most 5" in str(llm.prompts[0])
+
+
+async def test_claims_cap_per_tier():
+    from app.pipeline.drafter import draft_claims
+    subs = [SubQuestion(id=f"q{i}", text=f"What is X? {i}") for i in range(1, 7)]
+    plan5 = PLAN.model_copy(update={"sub_questions": subs})
+    sources6 = [Source(url=f"https://a.com/{i}", title=f"A{i}", content="c", sub_question_id=f"q{i}")
+                for i in range(1, 7)]
+    greedy = {"claims": [{"text": f"claim {i}", "citation_urls": ["https://a.com/1"]} for i in range(6)]}
+    llm = FakeLLM([greedy] * 6)
+    out = await draft_claims("b", plan5, sources6, {}, llm, "m-d", claims_cap=3)
+    per_q = {}
+    for c in out:
+        per_q[c.sub_question_id] = per_q.get(c.sub_question_id, 0) + 1
+    assert all(n <= 3 for n in per_q.values())
