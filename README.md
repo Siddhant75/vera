@@ -31,7 +31,7 @@ cd frontend && npm install && npm run dev
 1. **Plan** — Nemotron decomposes your brief into sub-questions phrased for your persona (engineer/founder/analyst), or for *what changed* if you researched this topic before.
 2. **Search** — live Tavily web search per sub-question, weighted by your trusted sources.
 3. **Draft** — atomic claims extracted from fetched sources; every claim must cite a real fetched URL; uncited claims are dropped, not guessed.
-4. **Verify** — a prosecutor pass hunts counter-evidence for every claim (live Tavily refutation search), then 2+ independent models vote on claim + refutation evidence. Disagreement triggers a second web re-check → supported / contradicted / disputed, with the reason one click away.
+4. **Verify** — a prosecutor pass hunts counter-evidence for every claim (live Tavily refutation search), then 2+ independent models vote on claim + refutation evidence. Disagreement triggers a second web re-check → supported / contradicted / disputed. **Expand any claim to watch the fight: each model's individual vote and the prosecutor's counter-evidence are shown verbatim.**
 5. **Synthesize** — persona-voiced report with verdict badges and open questions written back to research memory. Run a delta on the same topic and truly-reused sub-questions skip search/draft/verify entirely — the report shows what changed.
 
 ## 🏆 How Nebius Token Factory + NVIDIA Open Models Power This
@@ -60,7 +60,7 @@ brief → Planner → Searcher → Drafter → Verifier → Synthesizer → repo
 
 ## 🔒 Security & Privacy
 
-Vera stores everything locally (SQLite, no accounts, no sync). Private notes attach to topics and inform planning/drafting. Two hard rules, enforced in code — not by prompt:
+Vera stores everything locally (SQLite, no accounts, no sync). Private notes attach to topics and inform planning/drafting — every report shows **how many** notes shaped it, never what they said. Watch digests appear in-app and (if the operator sets a webhook) are delivered out. Two hard rules, enforced in code — not by prompt:
 
 - **Verbatim note text never reaches Tavily.** Every search query is checked before dispatch: 4-gram overlap with your notes, or (for short queries) any distinctive-token overlap, replaces the query with the topic slug. Deterministic code gate; paraphrases of note ideas may still evade it — that is why the never-paste list matters.
 - **Secrets are warned at save-time, never silently accepted or blocked** — Vera scans for API-key/password/private-key/card-number patterns and tells you loudly.

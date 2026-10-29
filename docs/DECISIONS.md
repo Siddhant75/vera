@@ -45,6 +45,18 @@ Key decisions, their reasoning, and the trade-offs accepted. Newest last.
 
 - **Skills v2 template filling uses SafeDict** — unknown `{var}` stays literal, never blocks a run; `{topic}`, `{date}`, `{quarter}` auto-injected; user vars override autos. `Run + Watch` composes skill invocation with the watcher (one-click ongoing research).
 
+## Shine pass (2026-10-29) — making the moat visible + minors resolution
+
+- **Verdicts carry per-model votes + prosecutor evidence** (`Verdict.votes`, `Verdict.prosecution` ≤800 chars): the final deciding round's per-model verdict/reason and the prosecutor's counter-evidence flow into `claim_proofs` via report JSON — no DB migration; legacy verdicts render fine (defaults empty, UI defensive). Why: the adversarial cross-model fight — the product's core differentiator — was flattened into a joined reason string and never reached the screen. Delta-carried verdicts (`r-` claims) have empty votes (prior research, shown as carried over).
+- **`notes_considered` count in report** — orchestrator passes `len(notes)`; UI shows "Considered N private note(s)" — count only, never content (privacy: same rule as notes-not-rendered).
+- **Watch digests stored in-app** (`watches.last_digest`): PRAGMA-guarded `ALTER TABLE` migration in `Memory.__init__`; `set_watch_result(..., digest=...)`; WatchToggle shows last digest per watch. Why: digests previously existed only if the operator set a webhook — judges never saw the watcher's output.
+- **Probe respects excluded domains (M2)** — freshness probe drops trust-excluded domains BEFORE the known-URL comparison: a banned domain appearing is not news, no wasted delta run.
+- **Webhook delivery truthfulness (M1)** — `_post_digest` calls `raise_for_status()`; HTTP-level failures raise, caller logs, watch still completes `changed` (digest is a bonus, never a blocker — but never silently "delivered" either).
+- **Graceful watch shutdown (M3)** — lifespan cancels AND awaits the watch task (exposed as `app.state.watch_task`): no half-written run records on shutdown.
+- **`digest_webhook_url` via DI (M4)** — `create_app(digest_webhook_url=...)` param; `Settings()` read only in `build_app`. Tests inject directly.
+- **Frontend error surface (M9)** — shared `requestJson` helper throws on non-2xx with the server's message; App shows `runError` (role=alert). Applied to `runResearch` too (same 429→undefined-run_id→hung-UI hazard; ruling: same pattern, same fix). No JS test runner in repo — pinned by build + backend 429 shape tests.
+- **M8 API-level tests** — POST /api/notes warn-and-save + DELETE /api/memory full wipe pinned at API level (passed immediately: characterization tests guarding existing endpoints — the point is they now EXIST). M10 ruling stands: brief-slug text reaching Tavily via probe/fallback is accepted behavior; private notes stay protected.
+
 ## Planned next (approved 2026-10-28, not yet built)
 
 - **Task 24 — Topic Watch (the track's "always-on")**: watched-topics table + in-app scheduler; due topic → automatic delta run → changes digest. Watcher failure = logged + retried next cycle (last missing fallback). Token cost ≈ $0.10-0.30/topic/day, inside DAILY_TOKEN_BUDGET.
