@@ -1,4 +1,4 @@
-const BASE = "http://localhost:8000";
+const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 export async function getProfile() {
   return (await fetch(`${BASE}/api/profile`)).json();
