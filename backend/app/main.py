@@ -36,7 +36,6 @@ class ResearchIn(BaseModel):
     delta: bool = False
     trusted_sources: list[str] | None = None  # per-run override: skills pass these; profile untouched
     excluded_sources: list[str] | None = None
-    source: str = ""  # provenance: manual | delta | skill | watch (set server-side)
 
 
 class FeedbackIn(BaseModel):
@@ -100,8 +99,7 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         if daily_token_budget and telemetry.snapshot()["tf_tokens"] >= daily_token_budget:
             return JSONResponse(status_code=429, content={
                 "error": f"daily token budget exhausted ({daily_token_budget}); come back tomorrow"})
-        provenance = r.source if r.source in ("manual", "delta", "skill", "watch") \
-            else ("delta" if r.delta else "manual")
+        provenance = "delta" if r.delta else "manual"  # server-owned: clients cannot forge provenance
         run_id = uuid.uuid4().hex[:12]
 
         async def emit(event: dict):
@@ -257,15 +255,25 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         from app.skills import auto_vars, fill_template
         filled_brief = fill_template(skill["brief_template"], s.vars, auto_vars(skill["topic"]))
         filled_topic = skill["topic"] or s.vars.get("topic", "")
-        # no profile swap: skill persona + source prefs are per-run overrides — stored profile untouched
-        run_resp = await post_research(ResearchIn(brief=filled_brief, topic=filled_topic,
-                                                  persona=skill["persona"],
-                                                  trusted_sources=skill["trusted_sources"],
-                                                  excluded_sources=skill["excluded_sources"],
-                                                  source="skill"))
-        if isinstance(run_resp, JSONResponse):
-            return run_resp  # budget guard 429 etc — pass through untouched
-        resp = dict(run_resp)
+        # no profile swap: skill persona + source prefs are per-run overrides — stored profile untouched.
+        # Own dispatch (not post_research): provenance "skill" is server-owned here, never client input.
+        from app.telemetry import telemetry
+        if daily_token_budget and telemetry.snapshot()["tf_tokens"] >= daily_token_budget:
+            return JSONResponse(status_code=429, content={
+                "error": f"daily token budget exhausted ({daily_token_budget}); come back tomorrow"})
+        skill_run_id = uuid.uuid4().hex[:12]
+
+        async def emit_skill(event: dict):
+            await bus.emit(skill_run_id, event)
+
+        prefs = ({"trusted": skill["trusted_sources"], "excluded": skill["excluded_sources"]}
+                 if skill["trusted_sources"] or skill["excluded_sources"] else None)
+        task = asyncio.create_task(run_research(skill_run_id, filled_brief, skill["persona"],
+                                                filled_topic, False, llm, tavily, memory, emit_skill,
+                                                domain_prefs=prefs, source="skill"))
+        app.state.background_tasks.add(task)
+        task.add_done_callback(app.state.background_tasks.discard)
+        resp = {"run_id": skill_run_id}
         if s.watch:
             wid = memory.add_watch(filled_topic or filled_brief[:40], filled_brief,
                                    skill["persona"], s.interval_hours)

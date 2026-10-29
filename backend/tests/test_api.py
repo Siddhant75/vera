@@ -197,3 +197,13 @@ async def test_watch_edit_endpoint(tmp_path):
         assert r.status_code == 404
         r = await c.put(f"/api/watch/{wid}", json={})
         assert r.status_code == 200  # empty update = no-op, not error
+
+
+async def test_provenance_not_spoofable(tmp_path):
+    llm = FakeLLM([PLAN, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    app, memory = make_app(tmp_path, llm, FakeTavily(SOURCES))
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        await c.post("/api/research", json={"brief": "Explain X", "source": "watch"})
+        for task in list(app.state.background_tasks):
+            await task
+        assert memory.list_runs()[0]["source"] == "manual"  # client cannot forge provenance

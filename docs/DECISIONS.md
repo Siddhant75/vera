@@ -77,9 +77,9 @@ Key decisions, their reasoning, and the trade-offs accepted. Newest last.
 
 ## Mode upgrades (2026-10-30) — provenance, re-freeze, backoff
 
-- **Every run records its mode** (`runs.source`: manual | delta | skill | watch): "What Vera remembers" is an activity log, not just a run list — the automation footprint is visible to the user and to judges. Post_research validates the enum; anything else falls back to delta/manual by the delta flag.
-- **Watches re-freeze in place** (`PUT /api/watch/{id}`, partial COALESCE update, interval re-clamped ≥1, 404 on unknown): the frozen-brief ruling stands — but the escape is now one edit instead of delete + recreate.
-- **Failing watches back off exponentially**: `error_count` bumps on every `error` status (probe or run failure), resets to 0 on ANY non-error outcome (changed/no-change/budget-limited — budget exhaustion is not the watch's fault). Due window = `interval × 2^min(error_count, 4)` — a broken watch converges to ≤16 checks per interval instead of burning a probe search every cycle. Deterministic, code-owned, no wall-clock in tests.
+- **Every run records its mode** (`runs.source`: manual | delta | skill | watch): "What Vera remembers" is an activity log, not just a run list — the automation footprint is visible to the user and to judges. Provenance is SERVER-OWNED — clients cannot set it (spoofing rejected by test); manual/delta computed from the request, skill/watch hard-coded at their internal dispatch sites.
+- **Watches re-freeze in place** (`PUT /api/watch/{id}`, partial COALESCE update, interval re-clamped ≥1, 404 on unknown): the frozen-brief ruling stands — but the escape is now one edit instead of delete + recreate. Edit does NOT reset `error_count` — a watch mid-backoff keeps its backoff (predictability); the new brief gets probed at the next due window.
+- **Failing watches back off exponentially**: `error_count` bumps on every `error` status (probe or run failure), resets to 0 on ANY non-error outcome (changed/no-change/budget-limited — budget exhaustion is not the watch's fault). Due window = `interval × 2^min(error_count, 4)` — checks space out to at most 16× the interval instead of one probe search every cycle. Deterministic, code-owned, no wall-clock in tests.
 
 ## Planned next (approved 2026-10-28, not yet built)
 

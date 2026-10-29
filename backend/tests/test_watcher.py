@@ -239,16 +239,17 @@ async def test_watch_backoff_after_errors(memory):
 
 async def test_backoff_resets_on_success(memory):
     from datetime import datetime, timedelta, timezone
+    t0 = datetime(2026, 10, 30, 12, 0, 0, tzinfo=timezone.utc)
     memory.add_watch("Explain X", "Explain X", "engineer", interval_hours=6)
     memory.save_run("Explain X", "engineer", "explain-x", {"sections": []}, run_uuid="old1")
     memory.save_sources("old1", [{"url": "https://known.com/a", "title": "A"}])
-    memory.set_watch_result(memory.list_watches()[0]["id"], "error")  # seed one prior error
+    memory.set_watch_result(memory.list_watches()[0]["id"], "error",
+                            checked_at=(t0 - timedelta(hours=24)).isoformat(timespec="seconds"))  # pinned, never wall-clock
     assert memory.list_watches()[0]["error_count"] == 1
 
     async def noop_emit(e):
         pass
 
-    t0 = datetime(2026, 10, 30, 12, 0, 0, tzinfo=timezone.utc)
     tavily = FakeTavily({"Explain X": [{"url": "https://known.com/a", "title": "A", "content": "c"}]})
     await check_due_watches(memory, FakeLLM(), tavily, emit=noop_emit, now=t0)  # no-change (but a run)
     w = memory.list_watches()[0]
