@@ -46,6 +46,28 @@ async def test_probe_changed_no_new_urls(memory):
     assert await probe_changed(memory, tavily, watch) is False
 
 
+async def test_probe_ignores_excluded_domains(memory):
+    memory.add_watch("k8s choice", "Brief", "founder")
+    memory.save_run("Brief", "founder", "k8s-choice", {"sections": []}, run_uuid="old1")
+    memory.save_sources("old1", [{"url": "https://known.com/a", "title": "A"}])
+    memory.set_profile("engineer", [], ["excluded.com"])
+    tavily = FakeTavily({"k8s choice": [{"url": "https://excluded.com/x", "title": "X", "content": "c"}]})
+    watch = memory.list_watches()[0]
+    assert await probe_changed(memory, tavily, watch) is False  # banned-domain news is not news
+
+
+async def test_probe_change_on_allowed_domain_still_fires(memory):
+    memory.add_watch("k8s choice", "Brief", "founder")
+    memory.save_run("Brief", "founder", "k8s-choice", {"sections": []}, run_uuid="old1")
+    memory.save_sources("old1", [{"url": "https://known.com/a", "title": "A"}])
+    memory.set_profile("engineer", [], ["excluded.com"])
+    tavily = FakeTavily({"k8s choice": [
+        {"url": "https://excluded.com/x", "title": "X", "content": "c"},
+        {"url": "https://fresh.com/b", "title": "B", "content": "c"}]})
+    watch = memory.list_watches()[0]
+    assert await probe_changed(memory, tavily, watch) is True
+
+
 async def test_first_watch_no_history_runs(memory):
     memory.add_watch("k8s choice", "Brief", "founder")
     tavily = FakeTavily()

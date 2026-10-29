@@ -2,7 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
-from app.memory import Memory
+from app.memory import Memory, domain_of
 from app.pipeline.orchestrator import run_research
 from app.pipeline.planner import topic_key
 from app.search import TavilyClient
@@ -28,15 +28,19 @@ async def probe_changed(memory: Memory, tavily: TavilyClient, watch: dict) -> bo
     if not last_uuid:
         return True
     results = await tavily.search(watch["topic"], max_results=5, role="grounding")
+    excluded = set(memory.get_profile().get("excluded_sources", []))
+    results = [r for r in results if domain_of(r["url"]) not in excluded]  # banned-domain news is not news
     known = {s["url"] for s in memory.get_sources(last_uuid)}
     return any(r["url"] not in known for r in results)
 
 
 async def _post_digest(text: str, payload: dict, url: str) -> None:
-    """Operator-set webhook only (SSRF-safe: never from API input). 10s timeout."""
+    """Operator-set webhook only (SSRF-safe: never from API input). 10s timeout.
+    HTTP-level failures raise — the caller logs them; delivery truthfulness matters."""
     import httpx
     async with httpx.AsyncClient(timeout=10) as client:
-        await client.post(url, json={"text": text, **payload})
+        resp = await client.post(url, json={"text": text, **payload})
+        resp.raise_for_status()
 
 
 async def check_due_watches(memory: Memory, llm: TokenFactoryClient, tavily: TavilyClient,

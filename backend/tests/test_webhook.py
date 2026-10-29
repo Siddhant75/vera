@@ -4,7 +4,7 @@ import pytest
 from conftest import FakeLLM, FakeTavily
 
 from app.memory import Memory
-from app.watcher import check_due_watches
+from app.watcher import _post_digest, check_due_watches
 
 
 class RecordingTavily(FakeTavily):
@@ -130,3 +130,15 @@ async def test_empty_webhook_no_post(tmp_path, monkeypatch):
     await check_due_watches(m, FakeLLM(), FakeTavily(), emit=noop, probe_fn=_changed_probe,
                            webhook_url="")
     assert posted == []
+
+
+@pytest.mark.asyncio
+async def test_post_digest_raises_on_http_error(monkeypatch):
+    real_client = httpx.AsyncClient
+
+    def fake_client(**kw):
+        return real_client(transport=httpx.MockTransport(lambda r: httpx.Response(500)), timeout=10)
+
+    monkeypatch.setattr(httpx, "AsyncClient", fake_client)
+    with pytest.raises(httpx.HTTPStatusError):
+        await _post_digest("t", {}, "http://hook.local/x")
