@@ -75,6 +75,12 @@ Key decisions, their reasoning, and the trade-offs accepted. Newest last.
 - **Watch briefs freeze on purpose**: editing your profile/goals later does NOT rewrite existing watches — predictability is a feature of automation (a watcher silently researching new intent would be worse). Delete + recreate (or future: re-freeze) to change intent.
 - **Notes match by topic key (fuzzy ≥0.75 or token overlap)**: a watch topic phrased very differently from your note topic may miss the notes — honest scope, same class as the privacy paraphrase caveat.
 
+## Mode upgrades (2026-10-30) — provenance, re-freeze, backoff
+
+- **Every run records its mode** (`runs.source`: manual | delta | skill | watch): "What Vera remembers" is an activity log, not just a run list — the automation footprint is visible to the user and to judges. Post_research validates the enum; anything else falls back to delta/manual by the delta flag.
+- **Watches re-freeze in place** (`PUT /api/watch/{id}`, partial COALESCE update, interval re-clamped ≥1, 404 on unknown): the frozen-brief ruling stands — but the escape is now one edit instead of delete + recreate.
+- **Failing watches back off exponentially**: `error_count` bumps on every `error` status (probe or run failure), resets to 0 on ANY non-error outcome (changed/no-change/budget-limited — budget exhaustion is not the watch's fault). Due window = `interval × 2^min(error_count, 4)` — a broken watch converges to ≤16 checks per interval instead of burning a probe search every cycle. Deterministic, code-owned, no wall-clock in tests.
+
 ## Planned next (approved 2026-10-28, not yet built)
 
 - **Task 24 — Topic Watch (the track's "always-on")**: watched-topics table + in-app scheduler; due topic → automatic delta run → changes digest. Watcher failure = logged + retried next cycle (last missing fallback). Token cost ≈ $0.10-0.30/topic/day, inside DAILY_TOKEN_BUDGET.
