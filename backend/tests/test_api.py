@@ -129,6 +129,38 @@ def test_digest_webhook_url_injected(tmp_path, monkeypatch):
     assert captured["webhook_url"] == "http://x.local/hook"
 
 
+async def test_post_note_returns_warnings_and_saves(tmp_path):
+    app, memory = make_app(tmp_path, FakeLLM(), FakeTavily())
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        r = await c.post("/api/notes", json={"topic": "Explain X",
+                                             "content": "my key is sk-abcdef12345678 keep private"})
+        assert r.status_code == 200
+        assert r.json()["warnings"]  # secret pattern flagged loudly at save-time
+        r = await c.get("/api/notes", params={"topic": "Explain X"})
+        assert any("sk-abcdef12345678" in n["content"] for n in r.json())  # warn-and-save, never silent
+
+
+async def test_purge_endpoint_wipes_everything(tmp_path):
+    llm = FakeLLM([PLAN, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    app, memory = make_app(tmp_path, llm, FakeTavily(SOURCES))
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        await c.post("/api/research", json={"brief": "Explain X", "topic": "Explain X"})
+        for task in list(app.state.background_tasks):
+            await task
+        await c.post("/api/notes", json={"topic": "Explain X", "content": "private note"})
+        await c.post("/api/profile", json={"persona": "founder"})
+
+        r = await c.delete("/api/memory")
+        assert r.status_code == 200
+
+        r = await c.get("/api/memory")
+        assert r.json()["runs"] == []
+        r = await c.get("/api/profile")
+        assert r.json()["persona"] == "engineer"  # back to defaults — profile wiped
+        r = await c.get("/api/notes", params={"topic": "Explain X"})
+        assert r.json() == []
+
+
 async def test_error_run_reports_failed_stage(tmp_path):
     llm = FakeLLM([PLAN, ValueError("boom")], planner_model="m-p", verifier_models=["m-v"])
     app, _ = make_app(tmp_path, llm, FakeTavily(SOURCES))

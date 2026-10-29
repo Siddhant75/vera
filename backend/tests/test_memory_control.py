@@ -22,6 +22,7 @@ def test_list_runs_and_delete_run(tmp_path):
 
 
 def test_purge_all_wipes_everything(tmp_path):
+    from app.memory import DEFAULT_PROFILE
     m = Memory(str(tmp_path / "t.db"))
     m.set_profile("founder", [], [])
     m.save_run("b", "founder", "k", REPORT, run_uuid="r1")
@@ -35,7 +36,7 @@ def test_purge_all_wipes_everything(tmp_path):
     assert m.list_watches() == []
     assert m.list_notes("k") == []
     assert m.list_skills() == []
-    assert m.get_profile() == m.get_profile()  # no crash; profile also wiped
+    assert m.get_profile() == DEFAULT_PROFILE  # profile also wiped, back to defaults
     assert m.get_report("r1") is None
 
 

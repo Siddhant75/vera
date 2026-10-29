@@ -28,7 +28,6 @@ async def test_note_in_planner_but_not_in_queries(tmp_path):
     DRAFT = {"claims": [{"text": "X", "citation_urls": ["https://a.com/1"]}]}
     VER = {"verdict": "supported", "reason": "r"}
     NARR = {"narrative": "n", "open_questions": []}
-    llm = FakeLLM([PLAN, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
     # planner is leaky: sub-question echoes the note's private phrase — gate must strip it
     leaky_plan = {"sub_questions": [{"id": "a", "text": "what is the internal SLA is 45 minutes for p99"}]}
     llm = FakeLLM([leaky_plan, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])

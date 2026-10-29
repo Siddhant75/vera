@@ -28,16 +28,8 @@ def _memory_with_watch(tmp_path, status_seed=None):
     return m
 
 
-def _patched_probe(monkeypatch, changed):
-    import app.watcher as W
-    async def probe(memory, tavily, watch):
-        return changed
-    monkeypatch.setattr(W, "probe_changed", probe)
-
-
 @pytest.mark.asyncio
 async def test_digest_posted_on_change(tmp_path, monkeypatch):
-    _patched_probe(monkeypatch, changed=True)
     from app import telemetry
     telemetry.telemetry.reset()
     m = _memory_with_watch(tmp_path)
@@ -74,7 +66,6 @@ async def _not_changed_probe(memory, tavily, watch):
 
 @pytest.mark.asyncio
 async def test_webhook_500_does_not_break_watch(tmp_path, monkeypatch):
-    _patched_probe(monkeypatch, changed=True)
     m = _memory_with_watch(tmp_path)
     PLAN = {"sub_questions": [{"id": "a", "text": "What is X?"}]}
     DRAFT = {"claims": []}
