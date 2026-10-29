@@ -36,7 +36,7 @@ class TokenFactoryClient:
         data = resp.json()
         usage = data.get("usage") or {}
         telemetry.add(tf_calls=1, tf_tokens=usage.get("total_tokens", 0) or 0)
-        return data["choices"][0]["message"]["content"]
+        return data["choices"][0]["message"]["content"] or ""
 
     async def chat_json(self, model: str, messages: list[dict], schema: dict,
                         max_tokens: int = 4096) -> dict:

@@ -153,3 +153,15 @@ async def test_list_models():
         return out
 
     assert await _run() == ["m/a", "m/b"]
+
+
+@pytest.mark.asyncio
+async def test_chat_json_survives_null_content():
+    # reasoning models sometimes return content=null (reasoning-only response) — must retry, not crash
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"message": {"content": None}}],
+                                         "usage": {"total_tokens": 5}})
+
+    c = _client(handler)
+    with pytest.raises(LLMError):  # retried twice, then clean LLMError — never AttributeError
+        await c.chat_json("m", [{"role": "user", "content": "q"}], {"type": "object"})
