@@ -109,7 +109,7 @@ async def test_chat_json_retries_once_on_malformed():
 
 
 @pytest.mark.asyncio
-async def test_chat_json_raises_after_second_malformed():
+async def test_chat_json_raises_after_third_malformed():
     async def _run():
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json=dict(CHAT_BODY, choices=[{"message": {"content": "garbage"}}]))
@@ -165,3 +165,19 @@ async def test_chat_json_survives_null_content():
     c = _client(handler)
     with pytest.raises(LLMError):  # retried twice, then clean LLMError — never AttributeError
         await c.chat_json("m", [{"role": "user", "content": "q"}], {"type": "object"})
+
+
+@pytest.mark.asyncio
+async def test_chat_json_survives_two_malformed():
+    responses = ["garbage", "still not json", json.dumps({"ok": True})]
+
+    async def _run():
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=dict(CHAT_BODY, choices=[{"message": {"content": responses.pop(0)}}]))
+
+        c = _client(handler)
+        out = await c.chat_json("m1", [], {"type": "object"})
+        await c._http.aclose()
+        return out
+
+    assert await _run() == {"ok": True}
