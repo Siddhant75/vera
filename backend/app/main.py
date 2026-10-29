@@ -36,6 +36,7 @@ class ResearchIn(BaseModel):
     delta: bool = False
     trusted_sources: list[str] | None = None  # per-run override: skills pass these; profile untouched
     excluded_sources: list[str] | None = None
+    source: str = ""  # provenance: manual | delta | skill | watch (set server-side)
 
 
 class FeedbackIn(BaseModel):
@@ -99,6 +100,8 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         if daily_token_budget and telemetry.snapshot()["tf_tokens"] >= daily_token_budget:
             return JSONResponse(status_code=429, content={
                 "error": f"daily token budget exhausted ({daily_token_budget}); come back tomorrow"})
+        provenance = r.source if r.source in ("manual", "delta", "skill", "watch") \
+            else ("delta" if r.delta else "manual")
         run_id = uuid.uuid4().hex[:12]
 
         async def emit(event: dict):
@@ -109,7 +112,8 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
                                                 domain_prefs={"trusted": r.trusted_sources or [],
                                                               "excluded": r.excluded_sources or []}
                                                 if r.trusted_sources is not None
-                                                or r.excluded_sources is not None else None))
+                                                or r.excluded_sources is not None else None,
+                                                source=provenance))
         app.state.background_tasks.add(task)
         task.add_done_callback(app.state.background_tasks.discard)
         return {"run_id": run_id}
@@ -243,7 +247,8 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
         run_resp = await post_research(ResearchIn(brief=filled_brief, topic=filled_topic,
                                                   persona=skill["persona"],
                                                   trusted_sources=skill["trusted_sources"],
-                                                  excluded_sources=skill["excluded_sources"]))
+                                                  excluded_sources=skill["excluded_sources"],
+                                                  source="skill"))
         if isinstance(run_resp, JSONResponse):
             return run_resp  # budget guard 429 etc — pass through untouched
         resp = dict(run_resp)

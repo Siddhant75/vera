@@ -70,7 +70,7 @@ async def check_due_watches(memory: Memory, llm: TokenFactoryClient, tavily: Tav
             continue
         report = await run_research(f"watch-{watch['id']}-{now.strftime('%Y%m%d%H%M%S')}",
                                     watch["brief"], watch["persona"], watch["topic"], True,
-                                    llm, tavily, memory, emit)
+                                    llm, tavily, memory, emit, source="watch")
         if report is None:
             memory.set_watch_result(watch["id"], "error", checked_at=now.isoformat(timespec="seconds"))
             continue  # run_research already emitted its own error event; retry next cycle

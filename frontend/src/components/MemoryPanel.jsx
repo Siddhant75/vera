@@ -21,6 +21,9 @@ export default function MemoryPanel() {
             <div key={r.run_uuid} className="watch-row">
               <span className="muted">{r.created_at} · {r.persona} · {r.topic_key}</span>
               <span>{r.brief.slice(0, 40)}…</span>
+              {r.source && r.source !== "manual" && (
+                <span className={`badge ${r.source === "watch" ? "yellow" : ""}`}>{r.source}</span>
+              )}
               <button type="button" onClick={async () => { await deleteRun(r.run_uuid); refresh(); }}>✕</button>
             </div>
           ))}

@@ -197,6 +197,20 @@ async def test_explicit_domain_prefs_win_over_profile(tmp_path):
     assert grounding and all(kw["include_domains"] == ["explicit.com"] for kw in grounding)
 
 
+async def test_run_source_persisted(tmp_path):
+    llm = make_llm([PLAN, DRAFT, VERDICT_SUP, VERDICT_SUP, NARR])
+    memory = Memory(str(tmp_path / "t.db"))
+    events = []
+
+    async def emit(e):
+        events.append(e)
+
+    await run_research("r-src", "Explain X", "engineer", "", False, llm, make_tavily(), memory, emit,
+                       source="skill")
+    row = [r for r in memory.list_runs() if r["run_uuid"] == "r-src"][0]
+    assert row["source"] == "skill"
+
+
 async def test_notes_considered_counted(tmp_path):
     llm = make_llm([PLAN, DRAFT, VERDICT_SUP, VERDICT_SUP, NARR])
     memory = Memory(str(tmp_path / "t.db"))

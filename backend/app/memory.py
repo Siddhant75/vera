@@ -73,6 +73,11 @@ class Memory:
         cols = [r[1] for r in self._conn.execute("PRAGMA table_info(watches)").fetchall()]
         if "last_digest" not in cols:  # legacy DBs: migrate in place
             self._conn.execute("ALTER TABLE watches ADD COLUMN last_digest TEXT")
+        if "error_count" not in cols:
+            self._conn.execute("ALTER TABLE watches ADD COLUMN error_count INTEGER NOT NULL DEFAULT 0")
+        rcols = [r[1] for r in self._conn.execute("PRAGMA table_info(runs)").fetchall()]
+        if "source" not in rcols:
+            self._conn.execute("ALTER TABLE runs ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'")
 
     def get_profile(self) -> dict:
         row = self._conn.execute("SELECT value FROM profile WHERE key='profile'").fetchone()
@@ -92,10 +97,10 @@ class Memory:
         self._conn.commit()
 
     def save_run(self, brief: str, persona: str, topic_key: str, report: dict,
-                 run_uuid: str | None = None) -> int:
+                 run_uuid: str | None = None, source: str = "manual") -> int:
         cur = self._conn.execute(
-            "INSERT INTO runs (run_uuid, brief, persona, topic_key, report_json) VALUES (?, ?, ?, ?, ?)",
-            (run_uuid, brief, persona, topic_key, json.dumps(report)),
+            "INSERT INTO runs (run_uuid, brief, persona, topic_key, report_json, source) VALUES (?, ?, ?, ?, ?, ?)",
+            (run_uuid, brief, persona, topic_key, json.dumps(report), source),
         )
         self._conn.commit()
         return cur.lastrowid
@@ -225,10 +230,11 @@ class Memory:
 
     def list_runs(self, limit: int = 50) -> list[dict]:
         rows = self._conn.execute(
-            "SELECT run_uuid, brief, persona, topic_key, created_at FROM runs ORDER BY id DESC LIMIT ?",
+            "SELECT run_uuid, brief, persona, topic_key, created_at, source FROM runs ORDER BY id DESC LIMIT ?",
             (limit,),
         ).fetchall()
-        return [{"run_uuid": r[0], "brief": r[1], "persona": r[2], "topic_key": r[3], "created_at": r[4]}
+        return [{"run_uuid": r[0], "brief": r[1], "persona": r[2], "topic_key": r[3], "created_at": r[4],
+                 "source": r[5]}
                 for r in rows]
 
     def delete_run(self, run_uuid: str) -> None:

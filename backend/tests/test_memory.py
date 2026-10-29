@@ -25,6 +25,29 @@ def test_save_run_and_last_report(tmp_path):
     assert m.last_report_for_topic("unknown") is None
 
 
+def test_save_run_source_roundtrip(tmp_path):
+    m = Memory(str(tmp_path / "t.db"))
+    m.save_run("b", "engineer", "k", REPORT, run_uuid="r1", source="watch")
+    m.save_run("b", "engineer", "k", REPORT, run_uuid="r2")  # no source → manual
+    sources = {r["run_uuid"]: r["source"] for r in m.list_runs()}
+    assert sources["r1"] == "watch"
+    assert sources["r2"] == "manual"
+
+
+def test_runs_source_migrates_legacy(tmp_path):
+    import sqlite3
+    p = str(tmp_path / "legacy.db")
+    c = sqlite3.connect(p)
+    c.execute("CREATE TABLE runs (id INTEGER PRIMARY KEY AUTOINCREMENT, run_uuid TEXT, brief TEXT NOT NULL, "
+              "persona TEXT NOT NULL, topic_key TEXT NOT NULL, report_json TEXT NOT NULL, "
+              "created_at TEXT NOT NULL DEFAULT (datetime('now')))")
+    c.commit()
+    c.close()
+    m = Memory(p)
+    m.save_run("b", "engineer", "k", REPORT, run_uuid="r1")
+    assert m.list_runs()[0]["source"] == "manual"
+
+
 def test_last_report_most_recent_wins(tmp_path):
     m = Memory(str(tmp_path / "t.db"))
     m.save_run("brief1", "engineer", "k", {"v": 1})

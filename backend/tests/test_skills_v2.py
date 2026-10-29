@@ -104,6 +104,20 @@ async def test_skill_run_uses_skill_sources_without_profile_mutation(tmp_path):
     assert any(kw.get("exclude_domains") == ["spam.io"] for kw in tavily.kwargs)
 
 
+async def test_skill_run_records_provenance(tmp_path):
+    m = _memory(tmp_path)
+    m.upsert_skill("s", "analyst", "brief text", "topic t")
+    llm = FakeLLM([PLAN, DRAFT, VER, VER, NARR], planner_model="m-p", verifier_models=["m-v"])
+    app = create_app(llm=llm, tavily=FakeTavily({"brief text": [
+        {"url": "https://a.com/1", "title": "A", "content": "c"}]}), memory=m)
+    import httpx
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        await c.post("/api/skills/s/run", json={})
+        for t in list(app.state.background_tasks):
+            await t
+    assert m.list_runs()[0]["source"] == "skill"
+
+
 async def test_skill_run_budget_429_not_500(tmp_path):
     m = _memory(tmp_path)
     m.upsert_skill("s", "founder", "brief", "t")

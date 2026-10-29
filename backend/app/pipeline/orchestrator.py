@@ -18,7 +18,7 @@ def resolve_topic_key(topic: str, brief: str) -> str:
 
 async def run_research(run_id: str, brief: str, persona: str, topic: str, delta: bool,
                        llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
-                       emit, domain_prefs: dict | None = None) -> dict:
+                       emit, domain_prefs: dict | None = None, source: str = "manual") -> dict:
     stage = {"current": "planning"}
     from app.telemetry import telemetry as _tel
     t_start = _tel.snapshot()
@@ -112,7 +112,7 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
                                   sources, prior, llm, llm.planner_model,
                                   uncovered=uncovered, notes_count=len(notes))
 
-        memory.save_run(brief, active_persona, tk, report.model_dump(), run_uuid=run_id)
+        memory.save_run(brief, active_persona, tk, report.model_dump(), run_uuid=run_id, source=source)
         memory.save_verdicts(run_id, [v.model_dump() for v in verdicts])
         memory.save_sources(run_id, [{"url": s.url, "title": s.title} for s in sources])
         from app.telemetry import telemetry
