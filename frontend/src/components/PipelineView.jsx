@@ -36,7 +36,19 @@ export default function PipelineView({ events }) {
               <div className="stage-detail">{payload.source_count} sources grounded</div>
             )}
             {key === "verifying" && payload && (
-              <div className="stage-detail">{payload.claim_count} claims under cross-examination</div>
+              <div className="stage-detail">
+                <div>{payload.claim_count} claims under cross-examination</div>
+                {payload.draft_claims?.length > 0 && (
+                  <ul className="stage-claims-preview">
+                    {payload.draft_claims.slice(0, 3).map((c, idx) => (
+                      <li key={idx}>“{c.text}”</li>
+                    ))}
+                    {payload.draft_claims.length > 3 && (
+                      <li className="muted">+{payload.draft_claims.length - 3} more claims</li>
+                    )}
+                  </ul>
+                )}
+              </div>
             )}
           </div>
         );

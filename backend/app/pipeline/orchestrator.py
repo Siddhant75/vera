@@ -92,7 +92,10 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
                                     claims_cap={"quick": 3, "standard": 4, "deep": 5}.get(p.depth, 4))
 
         stage["current"] = "verifying"
-        await emit({"run_id": run_id, "stage": "verifying", "payload": {"claim_count": len(claims)}})
+        await emit({"run_id": run_id, "stage": "verifying", "payload": {
+            "claim_count": len(claims),
+            "draft_claims": [{"text": c.text, "citations": c.citation_urls} for c in claims],
+        }})
         verdicts = await verify_claims(claims, sources, llm.verifier_models, llm, tavily,
                                        trust_fn=memory.trust_multiplier,
                                        flagged_claims=memory.negative_claim_texts(),
