@@ -62,3 +62,4 @@ class ResearchReport(BaseModel):
     notes_considered: int = 0  # how many private notes shaped this run — count only, never content
     depth: str = "standard"  # quick | standard | deep — how much research this question asked for
     bottom_line: str = ""  # the direct answer, ≤80 words, verdict-weighted; empty = unavailable
+    run_summary: dict = Field(default_factory=dict)

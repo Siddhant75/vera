@@ -118,16 +118,28 @@ async def run_research(run_id: str, brief: str, persona: str, topic: str, delta:
                                   sources, prior, llm, llm.planner_model,
                                   uncovered=uncovered, notes_count=len(notes), depth=p.depth)
 
+        from app.telemetry import telemetry
+        t_now = telemetry.snapshot()
+        run_summary = {
+            "searches_used": budget.used,
+            "search_budget": budget.limit,
+            "tf_tokens_run": t_now["tf_tokens"] - t_start["tf_tokens"],
+            "tf_calls_run": t_now["tf_calls"] - t_start["tf_calls"],
+            "tavily_searches_run": budget.used,
+            "tavily_grounding": t_now["tavily_grounding"] - t_start["tavily_grounding"],
+            "tavily_prosecution": t_now["tavily_prosecution"] - t_start["tavily_prosecution"],
+            "tavily_recheck": t_now["tavily_recheck"] - t_start["tavily_recheck"],
+            "tavily_probe": t_now["tavily_probe"] - t_start["tavily_probe"],
+            "tavily_extracts": t_now["tavily_extracts"] - t_start["tavily_extracts"],
+            "claims_verified": len(verdicts),
+            "claims": len(claims),
+            "reused": len(reused_sections),
+        }
+        report.run_summary = run_summary
         memory.save_run(brief, active_persona, tk, report.model_dump(), run_uuid=run_id, source=source)
         memory.save_verdicts(run_id, [v.model_dump() for v in verdicts])
         memory.save_sources(run_id, [{"url": s.url, "title": s.title} for s in sources])
-        from app.telemetry import telemetry
-        t_now = telemetry.snapshot()
-        await emit({"run_id": run_id, "stage": "done", "payload": {"report": report.model_dump(), "run_summary": {
-            "searches_used": budget.used, "search_budget": budget.limit,
-            "tf_tokens_run": t_now["tf_tokens"] - t_start["tf_tokens"],
-            "claims": len(claims), "reused": len(reused_sections),
-        }}})
+        await emit({"run_id": run_id, "stage": "done", "payload": {"report": report.model_dump(), "run_summary": run_summary}})
         await emit({"run_id": run_id, "stage": END, "payload": {}})
         return report
     except Exception as exc:
