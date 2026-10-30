@@ -110,7 +110,7 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
     # failure degrades to empty (section hidden), never crashes the report.
     # Never called with nothing grounded — an ungrounded bottom line is hallucination bait.
     bottom_line = ""
-    if any(s.narrative for s in sections):
+    if any(s.claims for s in sections):  # a bottom line needs verified content, not gap placeholders
         try:
             bl = await llm.chat_json(model, [
                 {"role": "system", "content": (
