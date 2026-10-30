@@ -130,47 +130,41 @@ sequenceDiagram
     D->>O: Drafted atomic claims with cited URLs
     O->>P: Submit Claim text + Base Evidence
     
-    rect rgb(240, 248, 255)
-        note over P,T: 1. Active Prosecution (Hunt for Counter-Evidence)
-        P->>P: Analyze weaknesses & formulate refutation query
-        alt Tier is Standard or Deep and Budget Available
-            P->>T: Refutation Search (role="prosecution", exclude_domains=banned)
-            T-->>P: Counter-evidence
-            opt Community Prosecution (Reddit)
-                P->>T: Search Reddit (role="prosecution", include_domains=["reddit.com"])
-                T-->>P: Practitioner counter-evidence
-            end
-        else Quick Tier or Budget Out
-            note over P: Skip refutation search; suspicions stand
+    Note over P,T: 1. Active Prosecution (Hunt for Counter-Evidence)
+    P->>P: Analyze weaknesses & formulate refutation query
+    alt Refutation Search Eligible (Standard or Deep Tier)
+        P->>T: Refutation Search (role="prosecution", exclude_domains=banned)
+        T-->>P: Counter-evidence
+        opt Community Prosecution (Reddit)
+            P->>T: Search Reddit (role="prosecution", include_domains=["reddit.com"])
+            T-->>P: Practitioner counter-evidence
         end
+    else Quick Tier or Budget Out
+        Note over P: Skip refutation search; suspicions stand
     end
 
-    rect rgb(255, 250, 240)
-        note over V: 2. Round 1 Independent Voting
-        P->>V: Claim + Base Evidence + Prosecution Evidence + Flagged Feedback
-        V->>V: Parallel voting (supported / contradicted / uncertain)
-    end
+    Note over V: 2. Round 1 Independent Voting
+    P->>V: Claim + Base Evidence + Prosecution Evidence + Flagged Feedback
+    V->>V: Parallel voting (supported / contradicted / uncertain)
 
     alt All Models Agree "Supported"
         V->>O: Verdict: Supported (votes recorded)
     else Any Disagreement or Uncertainty
-        rect rgb(255, 240, 245)
-            note over V,T: 3. Refereeing: Live Web Re-Check & Extraction
-            O->>T: Live Web Search on Claim Text (role="recheck")
-            T-->>O: Fresh search results
-            opt Full-Page Extraction
-                O->>T: Extract cited URLs (tavily.extract, batch <= 20)
-                T-->>O: Full page text (kills snippet truncation errors)
-            end
-            O->>V: Round 2 Voting with deep evidence
-            V->>V: Re-vote
-            alt All Models Supported
-                V->>O: Verdict: Supported (web_checked=True)
-            else Any Model Contradicted
-                V->>O: Verdict: Contradicted (web_checked=True)
-            else Mixed Verdicts
-                V->>O: Verdict: Disputed (web_checked=True)
-            end
+        Note over V,T: 3. Refereeing: Live Web Re-Check & Extraction
+        O->>T: Live Web Search on Claim Text (role="recheck")
+        T-->>O: Fresh search results
+        opt Full-Page Extraction
+            O->>T: Extract cited URLs (tavily.extract, batch <= 20)
+            T-->>O: Full page text (kills snippet truncation errors)
+        end
+        O->>V: Round 2 Voting with deep evidence
+        V->>V: Re-vote
+        alt All Models Supported
+            V->>O: Verdict: Supported (web_checked=True)
+        else Any Model Contradicted
+            V->>O: Verdict: Contradicted (web_checked=True)
+        else Mixed Verdicts
+            V->>O: Verdict: Disputed (web_checked=True)
         end
     end
 ```
@@ -185,7 +179,7 @@ When a user or watcher investigates a topic previously researched, Vera avoids r
 flowchart TD
     Start([User / Watcher triggers Research]) --> CheckDelta{Is Delta requested?}
     CheckDelta -- No --> FullRun[Full 5-Stage Run]
-    CheckDelta -- Yes --> Lookup[Lookup last_report_for_topic in SQLite<br/>Exact match or SequenceMatcher fuzzy >= 0.75]
+    CheckDelta -- Yes --> Lookup["Lookup last_report_for_topic in SQLite<br/>Exact match or SequenceMatcher fuzzy >= 0.75"]
     
     Lookup --> PriorFound{Prior Report Found?}
     PriorFound -- No --> FullRun

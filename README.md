@@ -145,37 +145,33 @@ sequenceDiagram
     participant S as Synthesizer (Nemotron)
 
     D->>P: Submit atomic claim + base sources
-    rect rgb(240, 248, 255)
-        P->>T: Refutation Search (role="prosecution")
-        opt Community Prosecution
-            P->>T: Reddit Search (role="prosecution", include_domains=["reddit.com"])
-        end
-        T-->>P: Counter-evidence
-        P->>V: Claim + Evidence + Prosecutor Suspicions
+    Note over P,T: Phase 1: Active Prosecution (Hunt Counter-Evidence)
+    P->>T: Refutation Search (role="prosecution")
+    opt Community Prosecution
+        P->>T: Reddit Search (role="prosecution", include_domains=["reddit.com"])
     end
+    T-->>P: Counter-evidence
+    P->>V: Claim + Evidence + Prosecutor Suspicions
 
-    rect rgb(255, 250, 240)
-        V->>V: Round 1 Independent Voting
-    end
+    Note over V: Phase 2: Round 1 Independent Voting
+    V->>V: Round 1 Independent Voting
 
     alt All Models Agree "Supported"
         V->>S: Verdict: Supported (votes recorded)
     else Any Disagreement or Uncertainty
-        rect rgb(255, 240, 245)
-            Note over V,T: Disagreement detected -> Web Re-Check
-            V->>T: Live Web Search on Claim Text (role="recheck")
-            opt Full-Page URL Extraction
-                V->>T: Extract cited URLs (tavily.extract, batch <= 20)
-            end
-            T-->>V: Deep re-check evidence + full-page text
-            V->>V: Round 2 Independent Voting
-            alt All Models Supported
-                V->>S: Verdict: Supported (web_checked=True)
-            else Any Model Contradicted
-                V->>S: Verdict: Contradicted (web_checked=True)
-            else Mixed Verdicts
-                V->>S: Verdict: Disputed (web_checked=True)
-            end
+        Note over V,T: Phase 3: Refereeing (Live Web Re-Check & Extraction)
+        V->>T: Live Web Search on Claim Text (role="recheck")
+        opt Full-Page URL Extraction
+            V->>T: Extract cited URLs (tavily.extract, batch <= 20)
+        end
+        T-->>V: Deep re-check evidence + full-page text
+        V->>V: Round 2 Independent Voting
+        alt All Models Supported
+            V->>S: Verdict: Supported (web_checked=True)
+        else Any Model Contradicted
+            V->>S: Verdict: Contradicted (web_checked=True)
+        else Mixed Verdicts
+            V->>S: Verdict: Disputed (web_checked=True)
         end
     end
 ```
