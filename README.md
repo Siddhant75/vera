@@ -35,7 +35,7 @@ cd vera
 cp .env.example .env
 ```
 
-Edit `.env` and fill in your keys:
+Edit `.env` and fill in your API credentials:
 ```env
 TOKEN_FACTORY_API_KEY=your_nebius_api_key_here
 TAVILY_API_KEY=your_tavily_api_key_here
@@ -66,10 +66,10 @@ source .venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Run backend server (starts on http://localhost:8000)
+# Run backend server (starts on http://127.0.0.1:8000)
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
-Verify backend health: `curl http://127.0.0.1:8000/api/telemetry`
+*Health check:* Verify backend telemetry at `curl http://127.0.0.1:8000/api/telemetry`
 
 ---
 
@@ -90,12 +90,12 @@ Open **`http://localhost:5173`** in your browser.
 
 ---
 
-### 4️⃣ Running Test Suites & Verification
+### 4️⃣ Verification & Test Suite
 
-Vera has a comprehensive, 100% mock-isolated test suite that verifies the entire pipeline without consuming real API credits:
+Vera includes a comprehensive, 100% mock-isolated test suite that verifies end-to-end pipeline orchestration, budget boundaries, privacy gates, and multi-model consensus logic without consuming live API tokens:
 
 ```bash
-# Run all 202 backend tests (runs in ~12 seconds)
+# Run all 202 backend tests (executes in ~12 seconds)
 pytest backend/tests
 
 # Run frontend linter and production bundle build
@@ -108,35 +108,47 @@ npm run build
 
 ## 🎯 Guidance for Running & Testing Vera
 
-Once the app is open at `http://localhost:5173`:
+Once open at `http://localhost:5173`, follow this guided evaluation workflow:
 
-1. **Test the Hero Run**:
+1. **Execute the Hero Research Run**:
    - The sample brief (*"Should our startup adopt Kubernetes or serverless for our new ML inference API?"*) is pre-filled.
-   - Click **Run Research** and observe the live multi-agent execution stream in real time.
-2. **Observe Dual-Tier Telemetry**:
-   - Notice the telemetry banner at the top: `⚡ THIS RUN (~49k-120k tokens)` is cleanly separated from `🌐 SESSION TOTAL`, so you always know the exact marginal cost of a single research query.
-3. **Inspect the Adversarial Verification Moat**:
-   - Scroll to the **Verified Claims** section. The first claim is auto-expanded by default.
-   - View the **`⚖️ Prosecutor's counter-evidence hunt`** where the prosecutor actively searched for contradictions, and inspect the independent **Model Votes** (Nemotron, DeepSeek, Qwen).
-4. **Switch to Full Research Draft Mode**:
+   - Click **Run Research** and observe the live multi-agent execution pipeline:
+     - **Planning**: Decomposes the brief into persona-specific sub-questions.
+     - **Searching**: Parallel Tavily queries ground every angle.
+     - **Drafting**: Extracts structured factual claims with citation requirements.
+     - **Verifying**: Live claims preview streams as models cross-examine facts.
+2. **Examine Dual-Tier Telemetry**:
+   - The top telemetry bar clearly separates **`⚡ THIS RUN`** (~49k–120k tokens) from **`🌐 SESSION TOTAL`**, demonstrating exact marginal cost economics without confusing a single query with cumulative usage.
+3. **Inspect the Adversarial Verification Proofs**:
+   - Scroll down to **Verified Claims**. The first load-bearing claim is auto-expanded by default.
+   - Notice the **`⚖️ Prosecutor's counter-evidence hunt`** where Vera actively searched for refutations, and read the independent reasoning from the **Model Votes** (Nemotron, DeepSeek, Qwen).
+4. **Export Full Research Draft (1-Click Markdown)**:
    - Click the **Full Research Draft (Markdown)** tab at the top of the report.
-   - View the complete compiled markdown document with section headings, inline verdict tags, and bibliography.
-   - Click **📋 Copy Draft to Clipboard** for instant export into Obsidian, Notion, or Google Docs.
-5. **Inspect the Tavily Transparency Pool**:
-   - Switch back to the Executive Report and scroll down past the **16 Authoritative Domain Cards** to the **Transparency Pool (Evaluated Web Evidence)**.
-   - Expand the card to inspect the exact web sources Tavily fetched that Vera's agents pruned to prevent hallucinated trivia.
-6. **Test the Delta Engine ("What Changed")**:
-   - With the topic tag set to `k8s vs serverless`, click **Run Delta (what changed)**.
-   - Notice how reused questions skip the pipeline, and Vera renders the **What changed since your last research** box highlighting updated, confirmed, and contradicted claims.
+   - Inspect the compiled, unabridged research paper with inline verdict markers (`[SUPPORTED]`, `[CONTRADICTED]`).
+   - Click **📋 Copy Draft to Clipboard** for instant export into your knowledge base (Obsidian, Notion, Docs).
+5. **Evaluate the Tavily Transparency Pool**:
+   - In the Executive Report, inspect the **16 Authoritative Domain Cards**, then scroll to the **Transparency Pool (Evaluated Web Evidence)**.
+   - Click to expand: Vera shows every live web source Tavily retrieved that was filtered out as redundant or unverified, ensuring complete provenance.
+6. **Run a Repeat Delta Query ("What Changed")**:
+   - Keep the topic tag as `k8s vs serverless` and click **Run Delta (what changed)**.
+   - Unchanged sub-questions skip LLM and search calls; Vera highlights the **What changed since your last research** delta box with confirmed, reversed, or updated claims.
 7. **Test Private Notes & Memory Restoration**:
-   - Expand **🔒 Private notes** and add internal context (e.g., *"we are bound to k8s by a platform mandate"*). Notice the deterministic privacy gate keeps confidential tokens off search engines.
-   - Open **🧠 What Vera remembers** and click **View ↗** on any past run to immediately reload its report and restore its exact telemetry.
+   - Click **🔒 Private notes** and add an internal constraint (*"we are bound to k8s by a platform mandate"*). The deterministic privacy gate ensures this note guides planning without leaking to search engines.
+   - Open **🧠 What Vera remembers** and click **View ↗** on any past research run to instantly restore its report and sync its historical telemetry.
+
+---
+
+## 💡 The Core Problem & Architectural Insight
+
+- **Every deep-research tool is stateless**: Tools like `gpt-researcher`, `smolagents`, or Perplexity treat every query as day zero. They have no memory of your role, your trusted domains, your prior conclusions, or your proprietary constraints.
+- **Citation quality is broken across the field**: Standard RAG pipelines cite links nobody verified, often hallucinating citations from snippet noise.
+- **Vera's Insight — Model Disagreement is a Feature**: Single-model systems suffer from self-confirmation bias and sycophancy. In Vera, **model disagreement is treated as an active investigative signal**. When independent models disagree, Vera triggers an automated referee pass across the live web to find the truth.
 
 ---
 
 ## 🚀 How NVIDIA Nemotron & Open Models Power Vera
 
-Single-model architectures create an echo chamber: if you ask a model to verify its own draft, it suffers from self-confirmation bias and sycophancy. Vera solves this by treating verification as an adversarial trial powered by **diverse open-source models** served on **Nebius Token Factory**:
+Single-model APIs create an echo chamber. Vera treats verification as an adversarial trial powered by **diverse open models** served on **Nebius Token Factory**:
 
 ```
                        ┌──────────────────────────────────────────────┐
@@ -152,7 +164,7 @@ Single-model architectures create an echo chamber: if you ask a model to verify 
                        ┌──────────────────────▼───────────────────────┐
                        │             Adversarial Verification         │
                        │  - Prosecutor hunts counter-evidence (Tavily)│
-                       │  - Independent Jury:                         │
+                       │  - Independent Multi-Model Jury:             │
                        │    * NVIDIA Nemotron                         │
                        │    * DeepSeek-V4-Pro                         │
                        │    * Qwen3-235B-Instruct                     │
@@ -166,28 +178,28 @@ Single-model architectures create an echo chamber: if you ask a model to verify 
 ```
 
 ### 1. NVIDIA Nemotron-3-Super-120B: The Orchestration Core
-- **Planning & Persona Decomposition**: Nemotron analyzes the user's role (`engineer`, `founder`, or `analyst`) and breaks complex briefs into 3 to 8 targeted sub-questions. It determines depth tiers (`quick`, `standard`, `deep`) and enforces deterministic search ceilings.
-- **Strict Citation-Grounded Drafting**: Nemotron synthesizes fetched web content into atomic, testable claims. It is constrained to only extract assertions with mandatory source URLs—preventing fabricated citations before verification even begins.
-- **Executive Synthesis & Markdown Compilation**: Nemotron synthesizes the final report, generating a punchy **Bottom Line (≤80 words)**, narrative sections weighted by claim verdicts, and compiling the full research draft for 1-click Markdown export.
+- **Persona-Driven Planning**: Nemotron analyzes the user's role (`engineer`, `founder`, `analyst`) and breaks complex briefs into 3 to 8 targeted sub-questions. It determines depth tiers (`quick`, `standard`, `deep`) and enforces deterministic search ceilings.
+- **Strict Citation-Grounded Drafting**: Nemotron extracts atomic claims strictly bound to fetched URLs. Uncited assertions are discarded before verification even begins.
+- **Executive Synthesis & Markdown Compilation**: Nemotron synthesizes the final report, generating an executive **Bottom Line (≤80 words)**, section narratives weighted by claim verdicts, and compiling the full research draft for 1-click Markdown export.
 
 ### 2. The Multi-Model Jury: DeepSeek-V4-Pro + Qwen3-235B
-- **Independent Quorum**: Vera passes the drafted claims and the prosecutor's counter-evidence to a multi-model jury consisting of `deepseek-ai/DeepSeek-V4-Pro` and `Qwen/Qwen3-235B-A22B-Instruct-2507`.
+- **Independent Quorum**: Vera passes the drafted claims and the prosecutor's counter-evidence to an independent multi-model jury (`deepseek-ai/DeepSeek-V4-Pro` and `Qwen/Qwen3-235B-A22B-Instruct-2507`).
 - **Adversarial Dispute Resolution**: If the models disagree on whether a claim is supported, Vera doesn't take an average—it initiates a live web referee re-check with full-page text extraction (`tavily.extract`) to resolve the discrepancy with primary evidence.
 
 ---
 
 ## ⚡ How Nebius Token Factory Accelerated Our Workflow
 
-Developing an adversarial, multi-agent research assistant requires orchestrating dozens of concurrent LLM calls per query. **Nebius Token Factory** was instrumental to building Vera:
+Developing an adversarial, multi-agent research assistant requires orchestrating dozens of concurrent LLM calls per query. **Nebius Token Factory** was foundational to building Vera:
 
 1. **Ultra-Low Latency & High Token Throughput**:
    - A single deep-research query involves up to 40 LLM interactions across planning, drafting, prosecutor hypotheses, and multi-model jury voting.
-   - Nebius Token Factory's optimized inference infrastructure allowed Vera to execute full 120,000-token multi-model research runs in **~45 seconds**, eliminating the latency bottlenecks common in traditional API providers.
+   - Nebius Token Factory's optimized inference infrastructure executes full 120,000-token multi-model research runs in **~45 seconds**, eliminating the latency bottlenecks common in traditional API providers.
 2. **Unified OpenAI-Compatible API Gateway**:
    - Nebius Token Factory hosts heterogeneous state-of-the-art open models (NVIDIA Nemotron, DeepSeek, Qwen) behind a **single standardized API endpoint** (`https://api.tokenfactory.nebius.com/v1`).
-   - This eliminated the need to maintain different SDKs, credential managers, or protocol adapters. Our Python `httpx` asynchronous client communicates with all three models seamlessly.
+   - This eliminated the need to maintain different SDKs, credential managers, or protocol adapters. Our Python asynchronous client communicates with all three models seamlessly.
 3. **Predictable Per-Token Economics**:
-   - Token Factory's transparent pricing made it possible to build Vera's **dual-tier telemetry engine**. Vera measures exact input/output tokens in real time, giving users total confidence in the cost-efficiency of every run (~49k–120k tokens per query).
+   - Token Factory's transparent pricing enabled Vera's **dual-tier telemetry engine**. Vera measures exact input/output tokens in real time, giving users total confidence in the cost-efficiency of every run (~49k–120k tokens per query).
 4. **Concurrency Without Throttling**:
    - When the verifier broadcasts claims to multiple jury models simultaneously, Token Factory handles the parallel fan-out without rate-limit drops or queue stalling.
 
@@ -208,7 +220,7 @@ Vera does not use Tavily as a simple search bar replacement. Instead, Tavily act
 
 ---
 
-## 🏛️ Architecture & Verification Flow
+## ⚖️ The Adversarial Verification Protocol (The Core Moat)
 
 ```mermaid
 sequenceDiagram
@@ -251,28 +263,58 @@ sequenceDiagram
     end
 ```
 
-For complete C4 architecture models, component diagrams, and SQLite database schemas, see **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+---
+
+## 📐 Deterministic Sizing & Depth Tiers
+
+The planner classifies each brief's depth (`quick` / `standard` / `deep`), and deterministic code enforces hard ceilings across the pipeline:
+
+| Tier | Sub-Questions | Search Budget | Claims / Question | Refutation Search | Typical Measured Token Burn & Latency |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **`quick`** | 3 | 8 | 3 | Skipped (suspicions only) | ~49K tokens · ~36s |
+| **`standard`** | 5 | 14 | 4 | Full refutation + community | ~120K tokens · ~45s |
+| **`deep`** | 8 | 20 (or formula) | 5 | Full refutation + community | ~180K–220K tokens · ~60s |
+
+*Formula for bulleted briefs:* `min(12 + 2 × requirements, 40)` searches. Code owns the budget—it never prompt-hopes.
 
 ---
 
-## 🏆 Hackathon Tracks & Alignment
+## 🔒 Security & Privacy by Construction
 
-### 1. Personal AI Track ($3,000+ Prize)
-- **Persistent Personal Memory**: Remembers who you are across sessions (`vera.db` SQLite).
-- **Dynamic Persona Adaptation**: Deep briefs adapt terminology, depth, and tone for Engineers, Founders, or Analysts.
-- **Deterministic Privacy Gate**: Private internal constraints steer the research without leaking confidential tokens to external search engines.
-- **The Delta Engine**: Remembers past research on a topic, running fast, token-efficient delta runs that highlight only what changed.
-- **Continuous Topic Watcher**: Researches topics in the background on schedule, probe-gated so it never burns tokens unless the web changes.
+Vera stores everything locally in SQLite (`vera.db` in WAL mode) with zero external database dependencies or telemetry tracking:
 
-### 2. Best Use of Tavily Prize ($3,000 Prize)
-- **6-Role Search Architecture**: Grounding, Prosecution, Reddit Community Search, Referee Re-Check, Full-Page Extraction, and the Transparency Pool.
-- **Tavily Transparency Pool**: Full provenance surfacing web sources evaluated and pruned during verification.
-- **Zero Hallucinated Citations**: Every claim is strictly bound to valid URLs with rich domain cards.
+Two hard rules, enforced in deterministic code — not prompts:
+1. **Verbatim note text never reaches Tavily**: Every search query is inspected before dispatch. 4-gram overlap with your private notes, or any distinctive-token overlap on short queries, immediately replaces the query with the sanitized topic slug.
+2. **Secrets are warned at save-time, never silently leaked**: Vera scans for API key, password, private key, and token patterns, warning you before saving confidential text.
 
-### 3. Grand Prize Contender
-- Fully open-weights multi-model architecture.
-- 202 unit and integration tests passing.
-- Production-grade UI with dual-tier telemetry, Markdown export, and live SSE streaming.
+**Never paste into notes:** passwords, private keys, or credentials. Notes live on your machine, but their context is processed by Nebius Token Factory during research. You can purge all memory anytime from the UI (*"What Vera remembers"* → type `DELETE` → Purge all).
+
+---
+
+## 🚀 Deployment & Ops
+
+- **One-Click Deploy**: Ships a [`render.yaml`](render.yaml) blueprint. Point Render at this repository, paste your `TOKEN_FACTORY_API_KEY` and `TAVILY_API_KEY`, and both FastAPI backend and Vite frontend deploy seamlessly.
+- **Production Demo Posture**:
+  - The watcher loop is off by default (`WATCH_INTERVAL_MINUTES=0`). Set to `30` on deployed instances for automatic background topic tracking.
+  - Public demo instances can enforce `DAILY_TOKEN_BUDGET=2000000` and `MAX_WATCHES=5` to prevent token farming.
+- **Zero-Burn Watcher**: The watcher probes each topic with 1 low-cost Tavily search and only wakes the LLMs when content actually changed.
+
+---
+
+## 🔥 Engineering Challenges & Accomplishments
+
+- **Structured Output on Reasoning Models**: Token Factory's Nemotron reasoning models garbled output when using standard `response_format=json_schema`. We transitioned all structured calls to schema-in-prompt + regex brace extraction with token escalation and retries.
+- **Taming Verifier Greed**: The first live run drafted 84 claims. We replaced prompt hopes with deterministic code caps: 3–5 claims per sub-question, budgeted searches, and evidence caps. **Result: 45 → 16 searches, 411K → 120K tokens (−71%)** with healthier verdict distributions.
+- **The Moat is the Constraint**: Single-model APIs cannot do adversarial multi-model verification. What the rules forbid (one model) is exactly what makes Vera's core work — the sponsor constraint IS the engine.
+- **Privacy in Code, Not Prompts**: A deterministic gate sits at every Tavily dispatch site; honestly scoped (verbatim text and short echoes blocked) and thoroughly tested.
+
+---
+
+## 🔭 What's Next
+
+- **Persistent Hosted Volumes**: Managed disk mount for hosted deployments (preserving SQLite memory across container spin-downs).
+- **Watch Run History Timeline**: Visual delta timeline per watched topic.
+- **Automated Webhook Alerts**: Slack/Discord webhook alerts for verified topic deltas.
 
 ---
 
