@@ -26,7 +26,11 @@ export default function App() {
   // restore the last report on load — research survives a page refresh
   useEffect(() => {
     getLastRunReport().then(({ report: rep, runId }) => {
-      if (rep && !rep.error && !report) { setReport(rep); setRestoredRunId(runId); }
+      if (rep && !rep.error && !report) {
+        setReport(rep);
+        setRestoredRunId(runId);
+        if (rep.run_summary) setRunSummary(rep.run_summary);
+      }
     }).catch(() => {});
   }, []);
 
@@ -85,7 +89,7 @@ export default function App() {
         <p className="tagline">Research that knows you, and proves it.</p>
       </header>
 
-      <TelemetryPanel />
+      <TelemetryPanel runSummary={runSummary || report?.run_summary} />
 
       <div className="controls">
         <PersonaToggle persona={persona} onChange={setPersona} />
@@ -116,12 +120,6 @@ export default function App() {
       </div>
 
       {events.length > 0 && <PipelineView events={events} />}
-      {runSummary && (
-        <div className="run-summary">
-          Searches {runSummary.searches_used}/{runSummary.search_budget} · {runSummary.tf_tokens_run} tokens ·{" "}
-          {runSummary.claims} claims{runSummary.reused > 0 ? ` · ${runSummary.reused} reused` : ""}
-        </div>
-      )}
       <ReportView runId={(report ? events.find((e) => e.run_id)?.run_id : null) || restoredRunId} report={report} />
 
       <footer>

@@ -54,28 +54,48 @@ header h1 {
 }
 .tagline { margin: 4px 0 18px; color: var(--muted); font-size: 15px; }
 
-/* ---------- telemetry: a machined strip, counts in mono ---------- */
-.telemetry {
+/* ---------- telemetry: machined dual-tier strip ---------- */
+.telemetry-bar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
+  flex-direction: column;
+  gap: 8px;
   border: 1px solid var(--border);
   background: var(--chrome-2);
+  border-radius: 8px;
+  padding: 10px 14px;
   margin-bottom: 18px;
   font-family: var(--mono);
   font-size: 12px;
 }
-.pill {
-  padding: 7px 14px;
-  color: var(--muted);
-  border-left: 1px solid var(--border);
-  display: inline-flex;
+.telemetry-section {
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-.pill:first-child { border-left: none; }
-.pill b, .pill .num { color: var(--text); font-weight: 600; }
-.pill.live { color: var(--green); border-left-color: var(--green); }
+.telemetry-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: var(--sans);
+}
+.telemetry-tag.run {
+  background: rgba(76, 187, 138, 0.15);
+  color: var(--green);
+  border: 1px solid rgba(76, 187, 138, 0.4);
+}
+.telemetry-tag.session {
+  background: rgba(74, 125, 219, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(74, 125, 219, 0.4);
+}
+.telemetry-detail { color: var(--muted); }
+.telemetry-detail b { color: var(--text); }
+.stage-claims-preview { margin: 4px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--text); }
+.stage-claims-preview .muted { color: var(--muted); font-size: 12px; }
 
 /* ---------- controls: dark chrome ---------- */
 .controls {
