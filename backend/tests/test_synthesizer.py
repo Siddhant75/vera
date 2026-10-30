@@ -137,3 +137,28 @@ async def test_synthesizer_sections_parallel_preserve_order():
     assert heads == [f"Question {i}?" for i in range(1, 6)]  # plan order
     assert [s.narrative for s in report.sections] == [f"Section {i}" for i in range(1, 6)]  # content-order match
     assert elapsed < 0.35, f"synthesizer still sequential: {elapsed:.2f}s"
+
+
+async def test_sources_cited_bibliography():
+    cited_a = Claim(id="c1", sub_question_id="q1", text="X", citation_urls=["https://a.com/1"])
+    cited_again = Claim(id="c2", sub_question_id="q2", text="X too", citation_urls=["https://a.com/1"])
+    other = Source(url="https://a.com/1", title="A1", content="c", sub_question_id="q2")
+    llm = FakeLLM([NARR_OK, NARR_OK])
+    report = await synthesize("b", "founder", "k", PLAN, [cited_a, cited_again], [],
+                             [SOURCE, other], None, llm, "m-s")
+    assert report.sources_cited == [{"url": "https://a.com/1", "title": "A1"}]  # deduped, with title
+    unused_urls = [s["url"] for s in report.sources_unused]
+    assert "https://a.com/1" not in unused_urls
+
+
+async def test_bottom_line_synthesized():
+    llm = FakeLLM([NARR_OK, {"bottom_line": "Adopt serverless; k8s only pays at scale."}])
+    report = await synthesize("b", "founder", "k", PLAN, [CLAIM], VERDICTS, [SOURCE], None, llm, "m-s")
+    assert report.bottom_line == "Adopt serverless; k8s only pays at scale."
+
+
+async def test_bottom_line_failure_degrades_not_crashes():
+    llm = FakeLLM([NARR_OK, ValueError("bottom line blew up")])
+    report = await synthesize("b", "founder", "k", PLAN, [CLAIM], VERDICTS, [SOURCE], None, llm, "m-s")
+    assert report.bottom_line == ""  # presentation degrades; report still built
+    assert report.sections  # sections intact

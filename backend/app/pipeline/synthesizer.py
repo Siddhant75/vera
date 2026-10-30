@@ -1,5 +1,8 @@
 import asyncio
 
+import asyncio
+import json
+
 from app.llm import TokenFactoryClient
 from app.models import Claim, ResearchPlan, ResearchReport, ReportSection, Source, Verdict
 
@@ -16,6 +19,12 @@ CHANGES_SCHEMA = {
     "type": "object",
     "properties": {"changes": {"type": "array", "items": {"type": "string"}}},
     "required": ["changes"],
+}
+
+BOTTOM_LINE_SCHEMA = {
+    "type": "object",
+    "properties": {"bottom_line": {"type": "string"}},
+    "required": ["bottom_line"],
 }
 
 
@@ -97,6 +106,25 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
             "verdict": v.verdict, "reason": v.reason, "web_checked": v.web_checked,
             "votes": v.votes, "prosecution": v.prosecution,
         }
+    # bottom line: the direct answer, weighted by verdicts. Presentation-level call:
+    # failure degrades to empty (section hidden), never crashes the report.
+    # Never called with nothing grounded — an ungrounded bottom line is hallucination bait.
+    bottom_line = ""
+    if any(s.narrative for s in sections):
+        try:
+            bl = await llm.chat_json(model, [
+                {"role": "system", "content": (
+                    f"You are the research synthesizer writing for a {persona}. In at most 80 words, "
+                    "state the BOTTOM LINE: the direct answer to the brief, weighted by the verdicts — "
+                    "never assert disputed or contradicted claims as fact. Return JSON.")},
+                {"role": "user", "content": (
+                    f"Brief: {brief}\nVerdict summary: {json.dumps(summary)}\nSection narratives:\n"
+                    + "\n".join(f"- {s.sub_question}: {s.narrative}" for s in sections))},
+            ], BOTTOM_LINE_SCHEMA, max_tokens=run_max_tokens)
+            bottom_line = (bl.get("bottom_line") or "").strip()
+        except Exception:
+            bottom_line = ""
+
     title_by_url = {s.url: s.title for s in sources}
     sources_cited = [{"url": u, "title": title_by_url.get(u, u)} for u in sorted(cited_urls)]
 
@@ -110,4 +138,5 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
         sources_cited=sources_cited,
         verdict_summary=summary, claim_verdicts=claim_verdicts,
         claim_proofs=claim_proofs, changes=changes, notes_considered=notes_count, depth=depth,
+        bottom_line=bottom_line,
     )
