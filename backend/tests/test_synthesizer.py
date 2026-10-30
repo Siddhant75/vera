@@ -162,3 +162,19 @@ async def test_bottom_line_failure_degrades_not_crashes():
     report = await synthesize("b", "founder", "k", PLAN, [CLAIM], VERDICTS, [SOURCE], None, llm, "m-s")
     assert report.bottom_line == ""  # presentation degrades; report still built
     assert report.sections  # sections intact
+
+
+async def test_section_failure_degrades_to_claims_only():
+    llm = FakeLLM([ValueError("section call starved"), NARR_OK])
+    report = await synthesize("b", "founder", "k", PLAN, [CLAIM], VERDICTS, [SOURCE], None, llm, "m-s")
+    first = report.sections[0]
+    assert first.claims == [CLAIM]  # verified content survives
+    assert "narrative unavailable" in first.narrative.lower()  # visible degradation
+    assert report.verdict_summary == {"disputed": 1}  # everything else intact
+
+
+async def test_changes_call_failure_degrades_to_empty():
+    llm = FakeLLM([ValueError("changes starved"), NARR_OK])
+    report = await synthesize("b", "founder", "k", PLAN, [CLAIM], VERDICTS, [SOURCE], PRIOR, llm, "m-s")
+    assert report.changes == []  # degraded, not fatal
+    assert report.sections  # report still built

@@ -44,15 +44,18 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
 
     changes: list[str] = []
     if prior_report is not None:
-        data = await llm.chat_json(model, [
-            {"role": "system", "content": "You compare two research reports. Return JSON."},
-            {"role": "user", "content": (
-                f"Brief: {brief}\n\nPrior report sections:\n{prior_report.get('sections', [])}\n\n"
-                f"New claims with verdicts:\n"
-                + "\n".join(f"- {c.text} [{(verdict_by_claim.get(c.id) or Verdict(claim_id=c.id, verdict='unverified', reason='', model='')).verdict}]" for c in claims)
-            )},
-        ], CHANGES_SCHEMA, max_tokens=min(run_max_tokens, 1500))  # 600 truncated real delta runs mid-JSON
-        changes = data.get("changes", [])[:8]
+        try:
+            data = await llm.chat_json(model, [
+                {"role": "system", "content": "You compare two research reports. Return JSON."},
+                {"role": "user", "content": (
+                    f"Brief: {brief}\n\nPrior report sections:\n{prior_report.get('sections', [])}\n\n"
+                    f"New claims with verdicts:\n"
+                    + "\n".join(f"- {c.text} [{(verdict_by_claim.get(c.id) or Verdict(claim_id=c.id, verdict='unverified', reason='', model='')).verdict}]" for c in claims)
+                )},
+            ], CHANGES_SCHEMA, max_tokens=min(run_max_tokens, 1500))
+            changes = data.get("changes", [])[:8]
+        except Exception:
+            changes = []  # degraded comparison — the delta report still builds
 
     async def _section(sq):
         q_claims = claims_by_q.get(sq.id, [])
@@ -67,15 +70,20 @@ async def synthesize(brief: str, persona: str, topic_key_in: str, plan: Research
             v = verdict_by_claim.get(c.id)
             label = v.verdict if v else "unverified"
             claim_lines.append(f"- {c.text} [VERDICT: {label}] (sources: {', '.join(c.citation_urls)})")
-        data = await llm.chat_json(model, [
-            {"role": "system", "content": (
-                f"You are a research synthesizer writing for a {persona}. Write a coherent narrative "
-                "section of at most 120 words — verdict-dense, not prose-dense. Every claim carries "
-                "its verification verdict — state disputed or contradicted claims with that label, "
-                "never silently. Return JSON."
-            )},
-            {"role": "user", "content": f"Brief: {brief}\nSub-question: {sq.text}\n\nVerified claims:\n" + "\n".join(claim_lines)},
-        ], SECTION_SCHEMA, max_tokens=run_max_tokens)
+        try:
+            data = await llm.chat_json(model, [
+                {"role": "system", "content": (
+                    f"You are a research synthesizer writing for a {persona}. Write a coherent narrative "
+                    "section of at most 120 words — verdict-dense, not prose-dense. Every claim carries "
+                    "its verification verdict — state disputed or contradicted claims with that label, "
+                    "never silently. Return JSON."
+                )},
+                {"role": "user", "content": f"Brief: {brief}\nSub-question: {sq.text}\n\nVerified claims:\n" + "\n".join(claim_lines)},
+            ], SECTION_SCHEMA, max_tokens=run_max_tokens)
+        except Exception:
+            # degrade presentation, never verification: the verified claims render without prose
+            data = {"narrative": "(narrative unavailable this run — the claims below are still fully verified)",
+                    "open_questions": []}
         return (ReportSection(sub_question=sq.text, narrative=data["narrative"], claims=q_claims),
                 data.get("open_questions", []))
 
