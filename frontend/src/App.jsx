@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { getLastRunReport, getReport, openEventStream, runResearch, runSkillV2 } from "./api";
+import { useEffect, useState } from "react";
+import { getLastRunReport, openEventStream, runResearch, runSkillV2 } from "./api";
 import PersonaToggle from "./components/PersonaToggle";
 import PipelineView from "./components/PipelineView";
 import ReportView from "./components/ReportView";
