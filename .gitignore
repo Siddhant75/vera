@@ -9,3 +9,5 @@ docs/superpowers/
 .pytest_cache/
 vera.db*
 .claude/
+docs/Submissions
+Submissions.md
