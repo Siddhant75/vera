@@ -140,7 +140,7 @@ sequenceDiagram
             T-->>P: Practitioner counter-evidence
         end
     else Quick Tier or Budget Out
-        Note over P: Skip refutation search; suspicions stand
+        Note over P: Skip refutation search - suspicions stand
     end
 
     Note over V: 2. Round 1 Independent Voting
@@ -150,11 +150,11 @@ sequenceDiagram
     alt All Models Agree "Supported"
         V->>O: Verdict: Supported (votes recorded)
     else Any Disagreement or Uncertainty
-        Note over V,T: 3. Refereeing: Live Web Re-Check & Extraction
+        Note over V,T: 3. Refereeing: Live Web Re-Check and Extraction
         O->>T: Live Web Search on Claim Text (role="recheck")
         T-->>O: Fresh search results
         opt Full-Page Extraction
-            O->>T: Extract cited URLs (tavily.extract, batch <= 20)
+            O->>T: Extract cited URLs (tavily.extract, batch up to 20)
             T-->>O: Full page text (kills snippet truncation errors)
         end
         O->>V: Round 2 Voting with deep evidence

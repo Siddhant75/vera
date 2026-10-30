@@ -162,7 +162,7 @@ sequenceDiagram
         Note over V,T: Phase 3: Refereeing (Live Web Re-Check & Extraction)
         V->>T: Live Web Search on Claim Text (role="recheck")
         opt Full-Page URL Extraction
-            V->>T: Extract cited URLs (tavily.extract, batch <= 20)
+            V->>T: Extract cited URLs (tavily.extract, batch up to 20)
         end
         T-->>V: Deep re-check evidence + full-page text
         V->>V: Round 2 Independent Voting
