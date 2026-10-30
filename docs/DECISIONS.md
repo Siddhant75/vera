@@ -132,6 +132,16 @@ Recorded for honesty and as the post-hackathon backlog. Each survived a fresh fu
 - **Frontend API base injectable at build time** (`VITE_API_BASE`, dev default `http://localhost:8000`); CORS already open; SSE passes Render's proxy.
 - **Receipts-then-freeze**: one real watch run is demonstrated pre-freeze and left in the activity log (`watch` badge + digest) — evidence of always-on with zero ongoing burn; the loop stays off on the demo.
 
+## Smart depth pass (2026-10-30) — sized research, faster runs, complete output
+
+- **Depth tiers, planner suggests + code clamps**: `quick` (≤3 sub-questions, 8 searches, 3 claims/sq, refutation SEARCH skipped with a visible note — vote + re-check intact) / `standard` (≤5, 14, 4, full) / `deep` (≤8, `min(12+2×req, 40)`, 5 — the old behavior, for bullet briefs). The planner classifies in its existing plan response (zero extra calls); `brief.clamp_depth` enforces: unknown → standard, ≥3 bullets can never be quick. Doctrine held: the model recommends, code decides. Live-validated: quick = 49K tokens/36s, standard = 120–129K/44–50s (was 2–4 min).
+- **Personalization is orthogonal to depth** (invariant): persona, notes, trust, feedback strictness apply at every tier in both modes (prompted + watcher). A quick run is still *yours*. Watch briefs classify naturally each cycle from their frozen brief — no new watch state.
+- **Parallel stages**: drafter + synthesizer sections run as a TaskGroup, reassembled in plan order — runs ~2× faster (44–50s standard, measured). ExceptionGroup details flattened into error events so root causes stay visible.
+- **Report completed**: `bottom_line` (verdict-weighted direct answer ≤80 words — gated on verified content, never called ungrounded; failure degrades to empty, never crashes), `sources_cited` bibliography (deduped, titled), verdict-summary strip, depth badge + persona line, notes-considered count.
+- **The degradation law**: presentation may degrade visibly; verification may only fail visibly. Synthesis failures (section/changes calls) render the verified claims without prose; verification failures render `uncertain` verdicts; planner failure fails the run (nothing exists to degrade into).
+- **Reasoning-model token starvation** (root-caused from video recording): Nemotron-3 burns the whole `max_tokens` on hidden reasoning for long prompts → `content: null`. Fix: retry escalates max_tokens ×2 per attempt (4096→8192→16384) — a ceiling is not a spend, so the ladder only costs when starved. Plus: 529/503 backoff-retry, fence-aware JSON extraction, failing content captured in `LLMError`. Run-failure odds dropped ~10×.
+- **Demo recording rig** (`.superpowers/video/`, gitignored): Playwright per-scene clips (real runs), Kokoro TTS narration, ffmpeg slot-driven assembly — video length is the boss, the script fits the footage. The rig caught 4 production bugs on the way.
+
 ## Submission artifacts remaining
 
 Hosted demo URL (set `DAILY_TOKEN_BUDGET` first), <3-min YouTube video, devpost submission.

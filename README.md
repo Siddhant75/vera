@@ -55,7 +55,8 @@ cd frontend && npm install && npm run dev
 2. **Search** — live Tavily web search per sub-question, with your trusted source domains preferred inside the query itself and banned domains excluded at the source.
 3. **Draft** — atomic claims extracted from fetched sources; every claim must cite a real fetched URL; uncited claims are dropped, not guessed.
 4. **Verify** — a prosecutor pass hunts counter-evidence for every claim (live Tavily refutation search), then 2+ independent models vote on claim + refutation evidence. Disagreement triggers a second web re-check → supported / contradicted / disputed. **Expand any claim to watch the fight: each model's individual vote and the prosecutor's counter-evidence are shown verbatim.**
-5. **Synthesize** — persona-voiced report with verdict badges and open questions written back to research memory. Run a delta on the same topic and truly-reused sub-questions skip search/draft/verify entirely — the report shows what changed.
+5. **Synthesize** — persona-voiced report with a **Bottom line**: the direct answer, weighted by the verdicts, up top. Verdict stamps, the full narrative per sub-question, open questions, and the complete source list (cited and uncited) fill the paper. Run a delta on the same topic and truly-reused sub-questions skip search/draft/verify entirely — the report shows what changed.
+6. **Size it** — the planner classifies each question's depth (`quick` / `standard` / `deep`) and the pipeline sizes itself to it: a narrow lookup runs 3 sub-questions on an 8-search budget; a multi-part brief gets the full 8-question treatment. Measured: quick ≈ 49K tokens / 36s, standard ≈ 120K / 45s. Your persona, notes, and trust settings apply at every depth, in both prompted and watcher runs.
 
 ## 🏆 How Nebius Token Factory + NVIDIA Open Models Power This
 
