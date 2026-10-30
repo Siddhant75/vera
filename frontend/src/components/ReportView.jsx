@@ -89,6 +89,12 @@ export default function ReportView({ runId, report }) {
           ))}
         </div>
       )}
+      {report.bottom_line && (
+        <div className="bottom-line">
+          <strong>Bottom line</strong>
+          <p>{report.bottom_line}</p>
+        </div>
+      )}
       {report.changes?.length > 0 && (
         <div className="delta-box">
           <strong>What changed since your last research:</strong>
