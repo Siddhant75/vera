@@ -48,6 +48,9 @@ export default function App() {
           setReport(e.payload.report);
           setRunSummary(e.payload.run_summary || null);
           setRunning(false);
+          setTimeout(() => {
+            document.querySelector('.report')?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
         } else if (e.stage === "error") {
           setRunning(false);
         }
@@ -72,6 +75,9 @@ export default function App() {
           setReport(e.payload.report);
           setRunSummary(e.payload.run_summary || null);
           setRunning(false);
+          setTimeout(() => {
+            document.querySelector('.report')?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
         } else if (e.stage === "error") {
           setRunning(false);
         }

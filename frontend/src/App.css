@@ -267,14 +267,35 @@ textarea:focus-visible, input:focus-visible, button:focus-visible {
 .claims { list-style: none; padding: 0; margin: 10px 0 0; }
 .claim-row {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 7px 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px 0;
   font-size: 15.5px;
   border-top: 1px dashed var(--paper-edge);
 }
 .claims > .claim-row:first-child { border-top: none; }
-.claim-line { display: flex; align-items: baseline; gap: 8px; }
+.claim-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn-toggle-proofs {
+  margin-left: auto;
+  background: var(--paper-deep);
+  border: 1px solid var(--paper-edge);
+  color: var(--ink-muted);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: var(--sans);
+  cursor: pointer;
+}
+.btn-toggle-proofs:hover {
+  color: var(--ink);
+  border-color: var(--ink-muted);
+}
 .claim-cites a { color: var(--accent); margin-left: 4px; text-decoration: none; font-family: var(--mono); font-size: 12px; }
 .claim-cites a:hover { text-decoration: underline; }
 .feedback-btns button { background: none; border: none; cursor: pointer; font-size: 14px; }

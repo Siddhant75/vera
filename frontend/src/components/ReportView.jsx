@@ -7,15 +7,14 @@ const BADGE = {
   disputed: ["badge yellow", "disputed"],
 };
 
-function ClaimRow({ runId, claim, proof }) {
+function ClaimRow({ runId, claim, proof, isOpen, onToggle }) {
   const [voted, setVoted] = useState(0);
-  const [open, setOpen] = useState(false);
   const verdict = proof?.verdict;
   const [cls, label] = verdict ? BADGE[verdict] || BADGE.disputed : ["badge", "unverified"];
   return (
     <li className="claim-row">
       <div className="claim-line">
-        <button type="button" className={cls} onClick={() => setOpen(!open)} title="Show verification proof">
+        <button type="button" className={cls} onClick={onToggle} title="Toggle verification proof">
           {label}
         </button>
         <span className="claim-text">{claim.text}</span>
@@ -33,7 +32,7 @@ function ClaimRow({ runId, claim, proof }) {
           </span>
         )}
       </div>
-      {open && proof && (
+      {isOpen && proof && (
         <div className="claim-proof">
           <strong>Verification proof</strong>
           <p>{proof.reason}</p>
@@ -70,7 +69,35 @@ function ClaimRow({ runId, claim, proof }) {
 }
 
 export default function ReportView({ runId, report }) {
+  const allClaimIds = report?.sections?.flatMap((s) => s.claims.map((c) => c.id)) || [];
+  const firstClaimId = allClaimIds[0];
+  const [expandedIds, setExpandedIds] = useState(() => new Set(firstClaimId ? [firstClaimId] : []));
+  const [prevFirstClaimId, setPrevFirstClaimId] = useState(firstClaimId);
+
+  if (firstClaimId !== prevFirstClaimId) {
+    setPrevFirstClaimId(firstClaimId);
+    setExpandedIds(new Set(firstClaimId ? [firstClaimId] : []));
+  }
+
   if (!report || report.error) return null;
+
+  const toggleClaim = (id) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const allOpen = allClaimIds.length > 0 && allClaimIds.every((id) => expandedIds.has(id));
+  const toggleAll = () => {
+    if (allOpen) {
+      setExpandedIds(new Set());
+    } else {
+      setExpandedIds(new Set(allClaimIds));
+    }
+  };
+
   const summary = report.verdict_summary || {};
   return (
     <div className="report">
@@ -78,7 +105,17 @@ export default function ReportView({ runId, report }) {
         <span className={`badge ${report.depth === "quick" ? "yellow" : report.depth === "deep" ? "" : "green"}`}>
           {report.depth || "standard"} research
         </span>
+        {report.run_summary?.tf_tokens_run !== undefined && (
+          <span className="badge green" title="Run cost">
+            ⚡ {(report.run_summary.tf_tokens_run || 0).toLocaleString()} tokens · {report.run_summary.tavily_searches_run || report.run_summary.searches_used || 0} searches
+          </span>
+        )}
         {report.persona && <span className="muted">for a {report.persona}</span>}
+        {allClaimIds.length > 0 && (
+          <button type="button" className="btn-toggle-proofs" onClick={toggleAll}>
+            {allOpen ? "Collapse All Proofs" : "Expand All Proofs"}
+          </button>
+        )}
       </div>
       {Object.keys(summary).length > 0 && (
         <div className="verdict-strip">
@@ -111,8 +148,14 @@ export default function ReportView({ runId, report }) {
           {sec.claims.length > 0 && (
             <ul className="claims">
               {sec.claims.map((c) => (
-                <ClaimRow key={c.id} runId={runId} claim={c}
-                          proof={report.claim_proofs?.[c.id]} />
+                <ClaimRow
+                  key={c.id}
+                  runId={runId}
+                  claim={c}
+                  proof={report.claim_proofs?.[c.id]}
+                  isOpen={expandedIds.has(c.id)}
+                  onToggle={() => toggleClaim(c.id)}
+                />
               ))}
             </ul>
           )}
