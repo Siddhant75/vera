@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { deleteRun, listMemory, purgeMemory } from "../api";
 
-export default function MemoryPanel({ onSelectRun }) {
+export default function MemoryPanel({ onSelectRun, disabled }) {
   const [mem, setMem] = useState(null);
   const [confirmPurge, setConfirmPurge] = useState("");
 
@@ -23,6 +23,7 @@ export default function MemoryPanel({ onSelectRun }) {
                 <button
                   type="button"
                   className="btn-view-run"
+                  disabled={disabled}
                   onClick={() => onSelectRun(r.run_uuid)}
                   title="View this research report"
                 >
@@ -32,10 +33,18 @@ export default function MemoryPanel({ onSelectRun }) {
               <span className="muted">{r.created_at} · {r.persona} · {r.topic_key}</span>
               <span
                 className="memory-run-brief"
-                onClick={() => onSelectRun && onSelectRun(r.run_uuid)}
+                role="button"
+                tabIndex={0}
+                onClick={() => !disabled && onSelectRun && onSelectRun(r.run_uuid)}
+                onKeyDown={(e) => {
+                  if (!disabled && onSelectRun && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    onSelectRun(r.run_uuid);
+                  }
+                }}
                 title="Click to view report"
               >
-                {r.brief.slice(0, 45)}…
+                {(r.brief || "").length > 45 ? `${r.brief.slice(0, 45)}…` : r.brief}
               </span>
               {r.source && r.source !== "manual" && (
                 <span className={`badge ${r.source === "watch" ? "yellow" : ""}`}>{r.source}</span>

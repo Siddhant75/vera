@@ -35,9 +35,11 @@ export default function App() {
   }, []);
 
   const handleSelectRun = async (runUuid) => {
+    if (running) return;
     try {
       const rep = await getReport(runUuid);
       if (rep && !rep.error) {
+        setEvents([]);
         setReport(rep);
         setRestoredRunId(runUuid);
         setRunSummary(rep.run_summary || null);
@@ -141,7 +143,7 @@ export default function App() {
         <WatchToggle topic={topic} brief={brief} persona={persona} />
         <SkillsPanel current={{ persona, brief, topic, excluded_sources: [] }} onRun={runByName} />
         <NotesPanel topic={topic} />
-        <MemoryPanel onSelectRun={handleSelectRun} />
+        <MemoryPanel onSelectRun={handleSelectRun} disabled={running} />
       </div>
 
       {events.length > 0 && <PipelineView events={events} />}
