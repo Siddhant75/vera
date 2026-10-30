@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { deleteRun, listMemory, purgeMemory } from "../api";
 
-export default function MemoryPanel() {
+export default function MemoryPanel({ onSelectRun }) {
   const [mem, setMem] = useState(null);
   const [confirmPurge, setConfirmPurge] = useState("");
 
@@ -18,13 +18,36 @@ export default function MemoryPanel() {
       {runs.length > 0 && (
         <div className="memory-list">
           {runs.map((r) => (
-            <div key={r.run_uuid} className="watch-row">
+            <div key={r.run_uuid} className="watch-row memory-run-row">
+              {onSelectRun && (
+                <button
+                  type="button"
+                  className="btn-view-run"
+                  onClick={() => onSelectRun(r.run_uuid)}
+                  title="View this research report"
+                >
+                  View ↗
+                </button>
+              )}
               <span className="muted">{r.created_at} · {r.persona} · {r.topic_key}</span>
-              <span>{r.brief.slice(0, 40)}…</span>
+              <span
+                className="memory-run-brief"
+                onClick={() => onSelectRun && onSelectRun(r.run_uuid)}
+                title="Click to view report"
+              >
+                {r.brief.slice(0, 45)}…
+              </span>
               {r.source && r.source !== "manual" && (
                 <span className={`badge ${r.source === "watch" ? "yellow" : ""}`}>{r.source}</span>
               )}
-              <button type="button" onClick={async () => { await deleteRun(r.run_uuid); refresh(); }}>✕</button>
+              <button
+                type="button"
+                className="btn-delete-run"
+                onClick={async () => { await deleteRun(r.run_uuid); refresh(); }}
+                title="Delete this run"
+              >
+                ✕
+              </button>
             </div>
           ))}
           <div className="purge-row">

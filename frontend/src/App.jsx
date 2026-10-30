@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getLastRunReport, openEventStream, runResearch, runSkillV2 } from "./api";
+import { getLastRunReport, getReport, openEventStream, runResearch, runSkillV2 } from "./api";
 import PersonaToggle from "./components/PersonaToggle";
 import PipelineView from "./components/PipelineView";
 import ReportView from "./components/ReportView";
@@ -33,6 +33,25 @@ export default function App() {
       }
     }).catch(() => {});
   }, []);
+
+  const handleSelectRun = async (runUuid) => {
+    try {
+      const rep = await getReport(runUuid);
+      if (rep && !rep.error) {
+        setReport(rep);
+        setRestoredRunId(runUuid);
+        setRunSummary(rep.run_summary || null);
+        setRunError(null);
+        setTimeout(() => {
+          document.querySelector('.report')?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } else {
+        setRunError(rep?.error || "Report not found");
+      }
+    } catch (e) {
+      setRunError(e.message || "Failed to load report from memory");
+    }
+  };
 
   const runByName = async (skillName, vars = {}, watch = false) => {
     setEvents([]);
@@ -122,7 +141,7 @@ export default function App() {
         <WatchToggle topic={topic} brief={brief} persona={persona} />
         <SkillsPanel current={{ persona, brief, topic, excluded_sources: [] }} onRun={runByName} />
         <NotesPanel topic={topic} />
-        <MemoryPanel />
+        <MemoryPanel onSelectRun={handleSelectRun} />
       </div>
 
       {events.length > 0 && <PipelineView events={events} />}
