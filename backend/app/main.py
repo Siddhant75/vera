@@ -1,10 +1,16 @@
 import asyncio
+import os
 import uuid
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+FRONTEND_DIST = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
+)
 
 try:
     import truststore
@@ -288,6 +294,9 @@ def create_app(llm: TokenFactoryClient, tavily: TavilyClient, memory: Memory,
                                        skill["persona"], s.interval_hours)
                 resp["watch_id"] = wid
         return resp
+
+    if os.path.exists(FRONTEND_DIST) and os.path.isdir(FRONTEND_DIST):
+        app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
 
     return app
 
