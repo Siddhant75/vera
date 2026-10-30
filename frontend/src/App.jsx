@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getReport, openEventStream, runResearch, runSkillV2 } from "./api";
+import { getLastRunReport, getReport, openEventStream, runResearch, runSkillV2 } from "./api";
 import PersonaToggle from "./components/PersonaToggle";
 import PipelineView from "./components/PipelineView";
 import ReportView from "./components/ReportView";
@@ -21,6 +21,14 @@ export default function App() {
   const [runSummary, setRunSummary] = useState(null);
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState(null);
+  const [restoredRunId, setRestoredRunId] = useState(null);
+
+  // restore the last report on load — research survives a page refresh
+  useEffect(() => {
+    getLastRunReport().then(({ report: rep, runId }) => {
+      if (rep && !rep.error && !report) { setReport(rep); setRestoredRunId(runId); }
+    }).catch(() => {});
+  }, []);
 
   const runByName = async (skillName, vars = {}, watch = false) => {
     setEvents([]);
@@ -114,7 +122,7 @@ export default function App() {
           {runSummary.claims} claims{runSummary.reused > 0 ? ` · ${runSummary.reused} reused` : ""}
         </div>
       )}
-      <ReportView runId={report ? events.find((e) => e.run_id)?.run_id : null} report={report} />
+      <ReportView runId={(report ? events.find((e) => e.run_id)?.run_id : null) || restoredRunId} report={report} />
 
       <footer>
         <small>

@@ -121,6 +121,13 @@ export async function listMemory() {
   return (await fetch(`${BASE}/api/memory`)).json();
 }
 
+export async function getLastRunReport() {
+  const mem = await listMemory();
+  const runs = mem.runs || [];
+  if (!runs.length) return null;
+  return { report: await getReport(runs[0].run_uuid), runId: runs[0].run_uuid };
+}
+
 export async function deleteRun(runUuid) {
   return (await fetch(`${BASE}/api/runs/${runUuid}`, { method: "DELETE" })).json();
 }
