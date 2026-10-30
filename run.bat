@@ -6,6 +6,9 @@ echo   Automated Test Build Launcher
 echo ========================================================
 echo.
 
+set "SCRIPT_DIR=%~dp0"
+cd /d "%SCRIPT_DIR%"
+
 if not exist .env (
     if exist .env.example (
         echo [INFO] Creating .env from .env.example...
@@ -33,6 +36,15 @@ if not exist .venv (
     call .venv\Scripts\activate.bat
 )
 
+set "PYTHONPATH=%SCRIPT_DIR%backend;%PYTHONPATH%"
+
 echo [INFO] Starting Vera unified server on http://127.0.0.1:8000 ...
-start http://127.0.0.1:8000
-python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+echo [INFO] Opening browser in 3 seconds...
+start "" cmd /c "timeout /t 3 /nobreak >nul & start http://127.0.0.1:8000"
+
+python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo [ERROR] Server exited with code %ERRORLEVEL%.
+    pause
+)

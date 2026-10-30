@@ -1,6 +1,13 @@
 import asyncio
 import os
+from pathlib import Path
+import sys
 import uuid
+
+# Ensure backend directory is always on sys.path regardless of execution CWD
+_backend_dir = str(Path(__file__).resolve().parent.parent)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,9 +15,18 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-FRONTEND_DIST = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
-)
+def find_frontend_dist() -> str:
+    candidates = [
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")),
+        os.path.abspath(os.path.join(os.getcwd(), "frontend", "dist")),
+        os.path.abspath(os.path.join(os.getcwd(), "dist")),
+    ]
+    for c in candidates:
+        if os.path.isdir(c) and os.path.exists(os.path.join(c, "index.html")):
+            return c
+    return candidates[0]
+
+FRONTEND_DIST = find_frontend_dist()
 
 try:
     import truststore

@@ -7,6 +7,9 @@ echo "  Automated Test Build Launcher"
 echo "========================================================"
 echo ""
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd "$DIR"
+
 if [ ! -f .env ] && [ -f .env.example ]; then
     echo "[INFO] Creating .env from .env.example..."
     cp .env.example .env
@@ -29,5 +32,6 @@ else
     source .venv/bin/activate
 fi
 
+export PYTHONPATH="$DIR/backend:$PYTHONPATH"
 echo "[INFO] Starting Vera unified server on http://127.0.0.1:8000 ..."
-python3 -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+python3 -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
