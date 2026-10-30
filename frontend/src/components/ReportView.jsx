@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { sendFeedback } from "../api";
 
 const BADGE = {
@@ -7,9 +7,17 @@ const BADGE = {
   disputed: ["badge yellow", "disputed"],
 };
 
+function getDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
 function buildMarkdownDraft(report) {
   if (!report) return "";
-  let md = `# Research Report: ${report.brief}\n\n`;
+  let md = `# Research Report: ${report.brief || "Untitled"}\n\n`;
   if (report.bottom_line) {
     md += `## Bottom Line\n${report.bottom_line}\n\n`;
   }
@@ -115,6 +123,8 @@ function ClaimRow({ runId, claim, proof, isOpen, onToggle }) {
 export default function ReportView({ runId, report }) {
   const [viewMode, setViewMode] = useState("report");
   const [copied, setCopied] = useState(false);
+  const [showAllUnused, setShowAllUnused] = useState(false);
+  const markdownDraft = useMemo(() => buildMarkdownDraft(report), [report]);
   const allClaimIds = report?.sections?.flatMap((s) => s.claims?.map((c) => c.id) || []) || [];
   const firstClaimId = allClaimIds[0];
   const [expandedIds, setExpandedIds] = useState(() => new Set(firstClaimId ? [firstClaimId] : []));
@@ -128,9 +138,8 @@ export default function ReportView({ runId, report }) {
   if (!report || report.error) return null;
 
   const handleCopyDraft = async () => {
-    const md = buildMarkdownDraft(report);
     try {
-      await navigator.clipboard.writeText(md);
+      await navigator.clipboard.writeText(markdownDraft);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -200,7 +209,7 @@ export default function ReportView({ runId, report }) {
               {copied ? "Copied! ✓" : "📋 Copy Draft to Clipboard"}
             </button>
           </div>
-          <pre className="markdown-draft">{buildMarkdownDraft(report)}</pre>
+          <pre className="markdown-draft">{markdownDraft}</pre>
         </div>
       ) : (
         <>
@@ -255,24 +264,67 @@ export default function ReportView({ runId, report }) {
             </section>
           )}
           {report.sources_cited?.length > 0 && (
-            <section>
-              <h3>Sources cited</h3>
-              <ul className="unused-sources">
+            <section className="sources-cited-section">
+              <div className="section-header-row">
+                <h3>Sources cited</h3>
+                <span className="badge green">{report.sources_cited.length} authoritative links</span>
+              </div>
+              <p className="muted">Directly grounded citations supporting load-bearing claims in this report.</p>
+              <div className="source-cards-grid">
                 {report.sources_cited.map((s, i) => (
-                  <li key={i}><a href={s.url} target="_blank" rel="noreferrer">{s.title || s.url}</a></li>
+                  <a
+                    key={i}
+                    href={s.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="source-card"
+                    title={s.url}
+                  >
+                    <div className="source-card-top">
+                      <span className="domain-badge">{getDomain(s.url)}</span>
+                      <span className="source-index">#{i + 1} ↗</span>
+                    </div>
+                    <div className="source-card-title">{s.title || s.url}</div>
+                  </a>
                 ))}
-              </ul>
+              </div>
             </section>
           )}
           {report.sources_unused?.length > 0 && (
-            <section>
-              <h3>Sources Vera saw but didn't cite</h3>
-              <p className="muted">Fetched from the live web but not needed for any claim — judge them yourself.</p>
-              <ul className="unused-sources">
-                {report.sources_unused.map((s, i) => (
-                  <li key={i}><a href={s.url} target="_blank" rel="noreferrer">{s.title || s.url}</a></li>
-                ))}
-              </ul>
+            <section className="transparency-pool-section">
+              <div className="transparency-card">
+                <div className="transparency-header">
+                  <div className="transparency-title-group">
+                    <h3>⚖️ Transparency Pool (Evaluated Web Evidence)</h3>
+                    <span className="badge yellow">{report.sources_unused.length} uncited sources</span>
+                  </div>
+                  {report.sources_unused.length > 5 && (
+                    <button
+                      type="button"
+                      className="btn-toggle-sources"
+                      onClick={() => setShowAllUnused(!showAllUnused)}
+                    >
+                      {showAllUnused
+                        ? "Collapse to 5"
+                        : `Show all ${report.sources_unused.length} evaluated sources`}
+                    </button>
+                  )}
+                </div>
+                <p className="transparency-explanation">
+                  Tavily retrieved these live web sources during grounding, but Vera's drafter &amp; verifier
+                  discarded them as redundant, unverified, or irrelevant to prevent hallucinated trivia and keep your report focused.
+                </p>
+                <ul className="transparency-list">
+                  {(showAllUnused ? report.sources_unused : report.sources_unused.slice(0, 5)).map((s, i) => (
+                    <li key={i} className="transparency-item">
+                      <span className="domain-pill">{getDomain(s.url)}</span>
+                      <a href={s.url} target="_blank" rel="noreferrer" className="transparency-link">
+                        {s.title || s.url} <span className="arrow">↗</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </section>
           )}
         </>
