@@ -338,6 +338,76 @@ textarea:focus-visible, input:focus-visible, button:focus-visible {
 .unused-sources li { padding: 3px 0; border-top: 1px dashed var(--paper-edge); }
 .unused-sources li:first-child { border-top: none; }
 
+.view-mode-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 16px;
+  border-bottom: 1px solid var(--paper-edge);
+  padding-bottom: 8px;
+}
+.view-mode-tabs button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+.view-mode-tabs button:hover {
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.03);
+}
+.view-mode-tabs button.active {
+  background: var(--paper-deep);
+  border-color: var(--paper-edge);
+  color: var(--ink);
+  font-weight: 600;
+}
+.draft-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.draft-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.btn-copy-draft {
+  background: var(--paper-deep);
+  border: 1px solid var(--paper-edge);
+  color: var(--ink);
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-copy-draft:hover {
+  background: var(--paper);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.markdown-draft {
+  background: var(--paper-deep);
+  border: 1px solid var(--paper-edge);
+  border-radius: 4px;
+  padding: 16px 20px;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+  max-height: 600px;
+  overflow-y: auto;
+}
+
 /* ---------- dark panels below the desk edge ---------- */
 .persona-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .profile-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; }

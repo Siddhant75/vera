@@ -126,7 +126,11 @@ export default function App() {
       </div>
 
       {events.length > 0 && <PipelineView events={events} />}
-      <ReportView runId={(report ? events.find((e) => e.run_id)?.run_id : null) || restoredRunId} report={report} />
+      <ReportView
+        key={(report ? events.find((e) => e.run_id)?.run_id : null) || restoredRunId || "report"}
+        runId={(report ? events.find((e) => e.run_id)?.run_id : null) || restoredRunId}
+        report={report}
+      />
 
       <footer>
         <small>
