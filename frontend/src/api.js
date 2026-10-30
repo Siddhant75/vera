@@ -1,4 +1,7 @@
-const BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+const isDev = typeof window !== "undefined" && (window.location.port === "5173" || window.location.port === "3000");
+const BASE = import.meta.env.VITE_API_BASE !== undefined
+  ? import.meta.env.VITE_API_BASE
+  : (isDev ? "http://localhost:8000" : "");
 
 export async function getProfile() {
   return (await fetch(`${BASE}/api/profile`)).json();
